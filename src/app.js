@@ -20,4 +20,24 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal Server Error' });
 });
 
+const { User } = require('./models');
+
+// Create default user if not exists
+(async () => {
+    try {
+        const user = await User.findOne({ where: { email: 'patrick@gmail.com' } });
+        if (!user) {
+            await User.create({
+                nome: 'Patrick',
+                email: 'patrick@gmail.com',
+                senha_hash: 'patrick123', // Will be hashed by hook
+                role: 'ADMIN'
+            });
+            console.log('Default user created: patrick@gmail.com');
+        }
+    } catch (error) {
+        console.error('Error creating default user:', error);
+    }
+})();
+
 module.exports = app;

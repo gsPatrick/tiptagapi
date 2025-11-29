@@ -1,4 +1,4 @@
-const { ContaCorrentePessoa, ContaPagarReceber, Pessoa, CreditoLoja, Repasse, Pedido, PagamentoPedido, FormaPagamento } = require('../../models');
+const { ContaCorrentePessoa, ContaPagarReceber, Pessoa, CreditoLoja, Repasse, Pedido, PagamentoPedido, FormaPagamento, TipoDeReceitaDespesa } = require('../../models');
 const { Op } = require('sequelize');
 
 class FinanceiroService {
@@ -123,20 +123,25 @@ class FinanceiroService {
         const totalDevolucoes = devolucoes.reduce((acc, p) => acc + parseFloat(p.total || 0), 0);
 
         // Despesas (ContaPagarReceber type PAGAR, status PAGO)
-        // Note: Using data_pagamento for expenses to match cash flow, or data_vencimento for accrual?
-        // DRE is usually accrual (competência), but for small business often cash (caixa).
-        // User said "subtrair despesas lançadas em ContaPagarReceber".
-        // I'll use data_pagamento if available, otherwise data_vencimento if we want accrual.
-        // Let's stick to cash basis for now as it's safer for "Lucro Líquido" in this context.
         const despesas = await ContaPagarReceber.findAll({
             where: {
                 tipo: 'PAGAR',
                 status: 'PAGO',
                 data_pagamento: whereDate
             },
-            attributes: ['valor_pago']
+            include: [{ model: TipoDeReceitaDespesa, as: 'categoria', attributes: ['nome'] }],
+            attributes: ['valor_pago', 'categoriaId']
         });
-        const totalDespesas = despesas.reduce((acc, c) => acc + parseFloat(c.valor_pago || 0), 0);
+
+        const despesasPorCategoria = {};
+        let totalDespesas = 0;
+
+        despesas.forEach(d => {
+            const catName = d.categoria ? d.categoria.nome : 'Outras Despesas';
+            const val = parseFloat(d.valor_pago || 0);
+            despesasPorCategoria[catName] = (despesasPorCategoria[catName] || 0) + val;
+            totalDespesas += val;
+        });
 
         const lucroLiquido = receitaTotal - totalDevolucoes - totalDespesas;
 
@@ -146,6 +151,7 @@ class FinanceiroService {
             receitaTotal,
             totalDevolucoes,
             totalDespesas,
+            despesasPorCategoria,
             lucroLiquido
         };
     }
@@ -223,16 +229,51 @@ class FinanceiroService {
             categoriaId
         });
 
-        // If paid, we should ideally update bank account balance or cash flow
-        // But for now, just creating the record as requested.
-        // "se já estiver pago, gerar o débito correspondente na conta bancária ou caixa."
-        // I would need MovimentacaoConta or similar, but I don't have the bank account ID in the input 'data' typically unless provided.
-        // I'll assume if it's implemented later or if I should do it now.
-        // The prompt says: "Lógica: Deve criar um registro em ContaPagarReceber e, se já estiver pago, gerar o débito correspondente na conta bancária ou caixa."
-        // I will add a placeholder or simple logic if models allow.
-        // I see MovimentacaoConta.js and MovimentacaoCaixaDiario.js.
-
         return transacao;
+    }
+
+    async getTransacoes(inicio, fim, tipo) {
+        const whereClause = {};
+
+        if (inicio && fim) {
+            whereClause.data_vencimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
+        }
+
+        if (tipo && tipo !== 'todos') {
+            whereClause.tipo = tipo.toUpperCase(); // RECEITA (RECEBER) or DESPESA (PAGAR)
+            // Map frontend 'receita'/'despesa' to model 'RECEBER'/'PAGAR' if needed
+            if (tipo === 'receita') whereClause.tipo = 'RECEBER';
+            if (tipo === 'despesa') whereClause.tipo = 'PAGAR';
+        }
+
+        const transacoes = await ContaPagarReceber.findAll({
+            where: whereClause,
+            include: [
+                { model: TipoDeReceitaDespesa, as: 'categoria', attributes: ['nome'] },
+                { model: Pessoa, as: 'pessoa', attributes: ['nome'] }
+            ],
+            order: [['data_vencimento', 'DESC']]
+        });
+
+        return transacoes.map(t => ({
+            id: t.id,
+            data: new Date(t.data_vencimento).toLocaleDateString('pt-BR'),
+            competencia: new Date(t.data_vencimento).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }),
+            tipo: t.tipo === 'RECEBER' ? 'Receita' : 'Despesa',
+            categoria: t.categoria ? t.categoria.nome : 'Geral',
+            desc: t.descricao,
+            valor: parseFloat(t.valor_previsto),
+            conta: 'Caixa Loja', // Placeholder as model doesn't have account
+            doc: 'N/A',
+            saldo: 0, // Need to calculate running balance if needed, or just leave 0
+            status: t.status === 'PAGO' ? 'Conciliado' : 'Pendente'
+        }));
+    }
+
+    async getContas() {
+        // Fetch store bank accounts
+        const { ContaBancariaLoja } = require('../../models');
+        return await ContaBancariaLoja.findAll();
     }
 }
 

@@ -85,6 +85,13 @@ class CatalogoService {
         // Placeholder for ZPL/PDF generation
         return { message: 'Etiquetas geradas', ids: pecaIds };
     }
+
+    async deletePeca(id) {
+        const peca = await Peca.findByPk(id);
+        if (!peca) throw new Error('Peca not found');
+        await peca.destroy();
+        return { message: 'Peca deleted successfully' };
+    }
 }
 
 module.exports = new CatalogoService();

@@ -57,6 +57,25 @@ class FinanceiroController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async getTransacoes(req, res) {
+        try {
+            const { inicio, fim, tipo } = req.query;
+            const transacoes = await financeiroService.getTransacoes(inicio, fim, tipo);
+            return res.json(transacoes);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async getContas(req, res) {
+        try {
+            const contas = await financeiroService.getContas();
+            return res.json(contas);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new FinanceiroController();

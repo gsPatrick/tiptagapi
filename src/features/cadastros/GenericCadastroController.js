@@ -8,7 +8,8 @@ const {
     Local,
     OrigemVenda,
     DimensaoPadrao,
-    ContaBancariaLoja
+    ContaBancariaLoja,
+    TipoDeReceitaDespesa
 } = require('../../models');
 
 const modelMap = {
@@ -22,6 +23,7 @@ const modelMap = {
     'origens': OrigemVenda,
     'dimensoes': DimensaoPadrao,
     'contas-loja': ContaBancariaLoja,
+    'receitas-despesas': TipoDeReceitaDespesa,
     'contas-pessoa': require('../../models').ContaBancariaPessoa
 };
 

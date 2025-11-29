@@ -11,5 +11,7 @@ router.post('/repasses/pagar', financeiroController.pagarRepasse);
 router.get('/dre', financeiroController.getDRE);
 router.get('/recebiveis', financeiroController.getRecebiveis);
 router.post('/transacoes', financeiroController.createTransacao);
+router.get('/transacoes', financeiroController.getTransacoes);
+router.get('/contas', financeiroController.getContas);
 
 module.exports = router;

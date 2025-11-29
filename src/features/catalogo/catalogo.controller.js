@@ -48,6 +48,15 @@ class CatalogoController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async deletePeca(req, res) {
+        try {
+            await catalogoService.deletePeca(req.params.id);
+            return res.status(204).send();
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new CatalogoController();
