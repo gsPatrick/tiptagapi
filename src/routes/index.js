@@ -13,6 +13,7 @@ const dashboardRoutes = require('../features/dashboard/dashboard.routes');
 const fiscalRoutes = require('../features/fiscal/fiscal.routes');
 const cadastrosRoutes = require('../features/cadastros/cadastros.routes');
 const relatoriosRoutes = require('../features/relatorios/relatorios.routes');
+const adminRoutes = require('../features/admin/admin.routes');
 
 router.use('/auth', authRoutes);
 router.use('/pessoas', pessoasRoutes);
@@ -25,6 +26,7 @@ router.use('/integracao', integracaoRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/fiscal', fiscalRoutes);
 router.use('/cadastros', cadastrosRoutes);
+router.use('/admin', adminRoutes);
 router.use('/', relatoriosRoutes); // Mount at root because routes define their own prefixes like /dashboard and /relatorios
 
 module.exports = router;

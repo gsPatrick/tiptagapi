@@ -40,6 +40,25 @@ class AdminController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async uploadLogo(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            // Construct full URL
+            const protocol = req.protocol;
+            const host = req.get('host');
+            const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+            // Update config directly
+            await adminService.updateConfig('SYSTEM_LOGO', fileUrl);
+
+            return res.json({ url: fileUrl });
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new AdminController();

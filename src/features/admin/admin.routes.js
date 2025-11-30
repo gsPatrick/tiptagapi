@@ -11,4 +11,7 @@ router.get('/users', adminController.getAllUsers);
 router.get('/configuracoes', adminController.getAllConfigs);
 router.put('/configuracoes/:chave', adminController.updateConfig);
 
+const upload = require('../../middleware/upload.middleware');
+router.post('/configuracoes/upload-logo', upload.single('file'), adminController.uploadLogo);
+
 module.exports = router;
