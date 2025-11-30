@@ -842,6 +842,41 @@ class RelatoriosService {
         });
     }
 
+    async getPecasPorFornecedor(fornecedorId, filters = {}) {
+        const whereClause = {
+            fornecedorId
+        };
+
+        if (filters.dataEntrada) {
+            whereClause.data_entrada = { [Op.gte]: new Date(filters.dataEntrada) };
+        }
+
+        const pecas = await Peca.findAll({
+            where: whereClause,
+            include: [
+                { model: Categoria, as: 'categoria', attributes: ['nome'] },
+                { model: Marca, as: 'marca', attributes: ['nome'] },
+                { model: Tamanho, as: 'tamanho', attributes: ['nome'] },
+                { model: Cor, as: 'cor', attributes: ['nome'] }
+            ],
+            order: [['data_entrada', 'DESC']]
+        });
+
+        return pecas.map(p => ({
+            id: p.id,
+            codigo: p.codigo_etiqueta || p.id,
+            descricao: p.descricao_curta,
+            categoria: p.categoria ? p.categoria.nome : '-',
+            marca: p.marca ? p.marca.nome : '-',
+            tamanho: p.tamanho ? p.tamanho.nome : '-',
+            cor: p.cor ? p.cor.nome : '-',
+            preco: parseFloat(p.preco_venda || 0),
+            custo: parseFloat(p.valor_liquido_fornecedor || 0),
+            status: p.status,
+            dataEntrada: p.data_entrada ? new Date(p.data_entrada).toLocaleDateString('pt-BR') : '-'
+        }));
+    }
+
 }
 
 module.exports = new RelatoriosService();

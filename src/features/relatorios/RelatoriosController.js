@@ -139,6 +139,16 @@ class RelatoriosController {
             return res.status(500).json({ error: err.message });
         }
     }
+    async getPecasPorFornecedor(req, res) {
+        try {
+            const { fornecedorId } = req.params;
+            const filters = req.query;
+            const data = await relatoriosService.getPecasPorFornecedor(fornecedorId, filters);
+            return res.json(data);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new RelatoriosController();
