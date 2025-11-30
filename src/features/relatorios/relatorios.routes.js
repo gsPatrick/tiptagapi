@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const relatoriosController = require('./RelatoriosController');
 
+const { authMiddleware } = require('../../middleware/auth.middleware');
+
+router.use(authMiddleware);
+
 router.get('/dashboard/resumo', relatoriosController.getResumo);
 router.get('/relatorios/vendas-categoria', relatoriosController.getVendasPorCategoria);
 router.get('/relatorios/vendas-marca', relatoriosController.getVendasPorMarca);

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('./admin.controller');
-const authMiddleware = require('../../middleware/auth.middleware');
+const { authMiddleware } = require('../../middleware/auth.middleware');
 
 // In a real app, we would have a roleMiddleware here too
 router.use(authMiddleware);

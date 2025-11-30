@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
@@ -18,3 +18,17 @@ module.exports = (req, res, next) => {
         return res.status(401).json({ error: 'Token invalid' });
     }
 };
+
+const roleMiddleware = (roles) => {
+    return (req, res, next) => {
+        if (!req.userRole) {
+            return res.status(403).json({ error: 'Access denied. No role found.' });
+        }
+        if (!roles.includes(req.userRole)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        next();
+    };
+};
+
+module.exports = { authMiddleware, roleMiddleware };
