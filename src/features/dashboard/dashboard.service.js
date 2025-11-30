@@ -45,7 +45,7 @@ class DashboardService {
         CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END
       ) as total_pendente
       FROM conta_corrente_pessoas ccp
-      JOIN pessoas p ON ccp."pessoaId" = p.id
+      JOIN pessoas p ON ccp.pessoa_id = p.id
       WHERE p.is_fornecedor = true
     `);
         // The query above sums everything. We need to filter by person first to see if balance > 0.
@@ -54,13 +54,13 @@ class DashboardService {
         // This is global.
         const totalCreditos = await sequelize.query(`
       SELECT SUM(valor) as total FROM conta_corrente_pessoas ccp
-      JOIN pessoas p ON ccp."pessoaId" = p.id
+      JOIN pessoas p ON ccp.pessoa_id = p.id
       WHERE p.is_fornecedor = true AND ccp.tipo = 'CREDITO'
     `, { type: sequelize.QueryTypes.SELECT });
 
         const totalDebitos = await sequelize.query(`
       SELECT SUM(valor) as total FROM conta_corrente_pessoas ccp
-      JOIN pessoas p ON ccp."pessoaId" = p.id
+      JOIN pessoas p ON ccp.pessoa_id = p.id
       WHERE p.is_fornecedor = true AND ccp.tipo = 'DEBITO'
     `, { type: sequelize.QueryTypes.SELECT });
 
