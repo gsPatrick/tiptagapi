@@ -13,7 +13,7 @@ async function startServer() {
         console.log('Database connected!');
 
         // 2. Sync Models (Alter for dev/updates)
-        await sequelize.sync({ alter: true });
+        await sequelize.sync({ force: true });
         console.log('Models synced!');
 
         // 2.1 Create default user
