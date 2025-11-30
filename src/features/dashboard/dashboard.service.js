@@ -42,7 +42,7 @@ class DashboardService {
         // We'll calculate sum of positive balances for suppliers.
         const [result] = await sequelize.query(`
       SELECT SUM(
-        CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END
+        CASE WHEN ccp.tipo = 'CREDITO' THEN valor ELSE -valor END
       ) as total_pendente
       FROM conta_corrente_pessoas ccp
       JOIN pessoas p ON ccp.pessoa_id = p.id
