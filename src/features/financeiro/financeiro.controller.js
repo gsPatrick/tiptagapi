@@ -76,6 +76,47 @@ class FinanceiroController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+    async getFechamentos(req, res) {
+        try {
+            const { inicio, fim } = req.query;
+            const fechamentos = await financeiroService.getFechamentos(inicio, fim);
+            return res.json(fechamentos);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async getExtratoPessoa(req, res) {
+        try {
+            const { pessoaId } = req.params;
+            const { inicio, fim } = req.query;
+            const extrato = await financeiroService.getExtratoPessoa(pessoaId, inicio, fim);
+            return res.json(extrato);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async getSaldosPessoas(req, res) {
+        try {
+            const filters = req.query;
+            const saldos = await financeiroService.getSaldosPessoas(filters);
+            return res.json(saldos);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async getEntradasSaidas(req, res) {
+        try {
+            const { inicio, fim, compareMode } = req.query;
+            const data = await financeiroService.getEntradasSaidas(inicio, fim, compareMode);
+            return res.json(data);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new FinanceiroController();

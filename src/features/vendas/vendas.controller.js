@@ -40,6 +40,54 @@ class VendasController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async getSacolinhas(req, res) {
+        try {
+            const result = await vendasService.getSacolinhas(req.query);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async getItensVendidos(req, res) {
+        try {
+            const { search } = req.query;
+            const result = await vendasService.getItensVendidos(search);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async processarDevolucao(req, res) {
+        try {
+            const { pecaId } = req.body;
+            const userId = req.user.id;
+            const result = await vendasService.processarDevolucao(pecaId, userId);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async getDevolucoes(req, res) {
+        try {
+            const result = await vendasService.getDevolucoes();
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async getPedidos(req, res) {
+        try {
+            const result = await vendasService.getPedidos(req.query);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new VendasController();

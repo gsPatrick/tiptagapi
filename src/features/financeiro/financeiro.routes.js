@@ -13,5 +13,9 @@ router.get('/recebiveis', financeiroController.getRecebiveis);
 router.post('/transacoes', financeiroController.createTransacao);
 router.get('/transacoes', financeiroController.getTransacoes);
 router.get('/contas', financeiroController.getContas);
+router.get('/fechamentos', financeiroController.getFechamentos);
+router.get('/extrato-pessoa/:pessoaId', financeiroController.getExtratoPessoa);
+router.get('/saldos-pessoas', financeiroController.getSaldosPessoas);
+router.get('/entradas-saidas', financeiroController.getEntradasSaidas);
 
 module.exports = router;

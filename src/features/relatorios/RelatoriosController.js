@@ -118,6 +118,27 @@ class RelatoriosController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+
+    async getGradeEstoque(req, res) {
+        try {
+            const filters = req.query;
+            const data = await relatoriosService.getGradeEstoque(filters);
+            return res.json(data);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async getVendasPorTamanho(req, res) {
+        try {
+            const { inicio, fim, categoriaId } = req.query;
+            const data = await relatoriosService.getVendasPorTamanho(inicio, fim, categoriaId);
+            return res.json(data);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new RelatoriosController();

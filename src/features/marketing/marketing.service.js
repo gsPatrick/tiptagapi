@@ -44,6 +44,43 @@ class MarketingService {
 
         return { message: 'Bot triggered (Placeholder)' };
     }
+
+    async getProdutosCampanha(filters = {}) {
+        const whereClause = {};
+        if (filters.search) {
+            whereClause.descricao_curta = { [Op.like]: `%${filters.search}%` };
+        }
+
+        // Include associations
+        return await Peca.findAll({
+            where: whereClause,
+            include: [
+                { model: Campanha, as: 'campanha', attributes: ['nome'] },
+                { model: require('../../models').Marca, as: 'marca', attributes: ['nome'] },
+                { model: require('../../models').Categoria, as: 'categoria', attributes: ['nome'] }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    async removeProdutosFromCampanha(pecaIds) {
+        await Peca.update(
+            { campanhaId: null, preco_promocional: null },
+            { where: { id: pecaIds } }
+        );
+        return { message: 'Produtos removidos da campanha' };
+    }
+
+    async approveProdutos(pecaIds) {
+        // Assuming 'Aprovar' means setting status to DISPONIVEL if it was EM_AUTORIZACAO
+        // Or just setting a flag if there was one. But Peca model has status.
+        // Let's assume it sets status to DISPONIVEL.
+        await Peca.update(
+            { status: 'DISPONIVEL' },
+            { where: { id: pecaIds } }
+        );
+        return { message: 'Produtos aprovados' };
+    }
 }
 
 module.exports = new MarketingService();

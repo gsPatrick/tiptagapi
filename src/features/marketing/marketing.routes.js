@@ -9,5 +9,8 @@ router.post('/campanhas', marketingController.createCampanha);
 router.get('/campanhas', marketingController.getAllCampanhas);
 router.post('/bot/match', marketingController.triggerBotMatch);
 router.post('/campanhas/:id/produtos', marketingController.addProdutosToCampanha);
+router.get('/produtos-campanha', marketingController.getProdutosCampanha);
+router.post('/campanhas/remover-produtos', marketingController.removeProdutosFromCampanha);
+router.post('/produtos/aprovar', marketingController.approveProdutos);
 
 module.exports = router;

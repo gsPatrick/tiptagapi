@@ -49,8 +49,28 @@ class CatalogoService {
     }
 
     async getAllPecas(filters = {}) {
+        const where = {};
+
+        if (filters.status) {
+            where.status = filters.status;
+        }
+
+        if (filters.search) {
+            where[Op.or] = [
+                { descricao_curta: { [Op.like]: `%${filters.search}%` } },
+                { codigo_etiqueta: { [Op.like]: `%${filters.search}%` } }
+            ];
+        }
+
+        // Allow other exact filters if passed
+        Object.keys(filters).forEach(key => {
+            if (key !== 'search' && key !== 'status') {
+                where[key] = filters[key];
+            }
+        });
+
         return await Peca.findAll({
-            where: filters,
+            where,
             include: [
                 { model: FotoPeca, as: 'fotos' },
                 { model: Tamanho, as: 'tamanho' },

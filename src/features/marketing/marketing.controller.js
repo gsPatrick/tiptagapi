@@ -39,6 +39,36 @@ class MarketingController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async getProdutosCampanha(req, res) {
+        try {
+            const filters = req.query;
+            const produtos = await marketingService.getProdutosCampanha(filters);
+            return res.json(produtos);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    async removeProdutosFromCampanha(req, res) {
+        try {
+            const { pecaIds } = req.body;
+            const result = await marketingService.removeProdutosFromCampanha(pecaIds);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async approveProdutos(req, res) {
+        try {
+            const { pecaIds } = req.body;
+            const result = await marketingService.approveProdutos(pecaIds);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new MarketingController();

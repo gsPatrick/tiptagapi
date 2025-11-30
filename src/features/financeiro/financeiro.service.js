@@ -275,6 +275,154 @@ class FinanceiroService {
         const { ContaBancariaLoja } = require('../../models');
         return await ContaBancariaLoja.findAll();
     }
+
+    async getFechamentos(inicio, fim) {
+        const { CaixaDiario, User } = require('../../models');
+        const whereClause = {};
+
+        if (inicio && fim) {
+            whereClause.data_abertura = { [Op.between]: [new Date(inicio), new Date(fim)] };
+        }
+
+        const caixas = await CaixaDiario.findAll({
+            where: whereClause,
+            include: [{ model: User, as: 'operador', attributes: ['nome'] }],
+            order: [['data_abertura', 'DESC']]
+        });
+
+        return caixas.map(c => ({
+            id: c.id,
+            abertura: new Date(c.data_abertura).toLocaleString('pt-BR'),
+            fechamento: c.data_fechamento ? new Date(c.data_fechamento).toLocaleString('pt-BR') : 'EM ABERTO',
+            usuario: c.operador ? c.operador.nome : 'SISTEMA',
+            status: c.status === 'ABERTO' ? 'Aberto' : (c.diferenca_quebra === 0 ? 'Correto' : (c.diferenca_quebra > 0 ? 'Sobras' : 'Divergente')),
+            esperado: parseFloat(c.saldo_final_calculado || 0),
+            confirmado: parseFloat(c.saldo_final_informado || 0),
+            dif: parseFloat(c.diferenca_quebra || 0),
+            dataReal: new Date(c.data_abertura).toLocaleDateString('pt-BR')
+        }));
+    }
+
+    async getExtratoPessoa(pessoaId, inicio, fim) {
+        const { ContaCorrentePessoa, Pessoa } = require('../../models');
+        const whereClause = { pessoaId };
+
+        if (inicio && fim) {
+            whereClause.data_movimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
+        }
+
+        const movs = await ContaCorrentePessoa.findAll({
+            where: whereClause,
+            include: [{ model: Pessoa, as: 'pessoa', attributes: ['nome'] }],
+            order: [['data_movimento', 'ASC']]
+        });
+
+        let saldo = 0;
+        return movs.map(m => {
+            const valor = parseFloat(m.valor);
+            if (m.tipo === 'CREDITO') saldo += valor;
+            else saldo -= valor;
+
+            return {
+                id: m.id,
+                data: new Date(m.data_movimento).toLocaleDateString('pt-BR'),
+                transacao: m.tipo === 'CREDITO' ? 'Crédito' : 'Débito',
+                categoria: m.descricao || '-',
+                historico: m.descricao,
+                debito: m.tipo === 'DEBITO' ? valor : null,
+                credito: m.tipo === 'CREDITO' ? valor : null,
+                saldo: saldo
+            };
+        });
+    }
+
+    async getSaldosPessoas(filters = {}) {
+        const { Pessoa, ContaCorrentePessoa } = require('../../models');
+        const whereClause = {};
+
+        if (filters.search) {
+            whereClause[Op.or] = [
+                { nome: { [Op.like]: `%${filters.search}%` } },
+                { telefone_whatsapp: { [Op.like]: `%${filters.search}%` } }
+            ];
+        }
+
+        const pessoas = await Pessoa.findAll({
+            where: whereClause,
+            include: [
+                {
+                    model: ContaCorrentePessoa,
+                    as: 'movimentacoesConta',
+                    attributes: ['tipo', 'valor']
+                }
+            ]
+        });
+
+        return pessoas.map(p => {
+            let saldo = 0;
+            if (p.movimentacoesConta) {
+                p.movimentacoesConta.forEach(m => {
+                    if (m.tipo === 'CREDITO') saldo += parseFloat(m.valor);
+                    else saldo -= parseFloat(m.valor);
+                });
+            }
+
+            return {
+                id: p.id,
+                nome: p.nome,
+                pix: p.dados_pix || '-',
+                whatsapp: p.telefone_whatsapp || '-',
+                ultPagto: '-', // Need logic to find last payment
+                pecasVenda: 0, // Need logic to count pieces on sale
+                valor: saldo,
+                tipo: saldo >= 0 ? 'CREDOR' : 'DEVEDOR'
+            };
+        });
+    }
+
+    async getEntradasSaidas(inicio, fim, compareMode = 'mes') {
+        const { MovimentacaoConta } = require('../../models');
+        const moment = require('moment');
+
+        const startCurrent = moment(inicio).startOf('day');
+        const endCurrent = moment(fim).endOf('day');
+
+        let startPrevious, endPrevious;
+        if (compareMode === 'ano') {
+            startPrevious = moment(startCurrent).subtract(1, 'year');
+            endPrevious = moment(endCurrent).subtract(1, 'year');
+        } else {
+            startPrevious = moment(startCurrent).subtract(1, 'month');
+            endPrevious = moment(endCurrent).subtract(1, 'month');
+        }
+
+        const getTotals = async (start, end) => {
+            const movs = await MovimentacaoConta.findAll({
+                where: {
+                    data_movimento: { [Op.between]: [start.toDate(), end.toDate()] }
+                }
+            });
+
+            let receitas = 0;
+            let despesas = 0;
+
+            movs.forEach(m => {
+                const valor = parseFloat(m.valor);
+                if (m.tipo_transacao === 'CREDITO') receitas += valor;
+                else despesas += valor;
+            });
+
+            return { receitas, despesas };
+        };
+
+        const current = await getTotals(startCurrent, endCurrent);
+        const previous = await getTotals(startPrevious, endPrevious);
+
+        return {
+            receitas: { atual: current.receitas, anterior: previous.receitas },
+            despesas: { atual: current.despesas, anterior: previous.despesas }
+        };
+    }
 }
 
 module.exports = new FinanceiroService();

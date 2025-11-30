@@ -14,5 +14,8 @@ router.get('/relatorios/historico-cliente/:id', relatoriosController.getHistoric
 router.get('/relatorios/detalhes-fornecedor/:id', relatoriosController.getDetalhesFornecedor);
 router.get('/relatorios/comissoes', relatoriosController.getComissoes);
 router.get('/relatorios/vendas-repasse', relatoriosController.getVendasRepasse);
+router.get('/relatorios/pecas-fornecedor/:fornecedorId', relatoriosController.getPecasPorFornecedor);
+router.get('/relatorios/grade-estoque', relatoriosController.getGradeEstoque);
+router.get('/relatorios/vendas-tamanho', relatoriosController.getVendasPorTamanho);
 
 module.exports = router;

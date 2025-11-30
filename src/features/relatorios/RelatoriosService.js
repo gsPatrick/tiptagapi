@@ -711,6 +711,137 @@ class RelatoriosService {
             devolucoes: returnItems.map(mapItem)
         };
     }
+    async getGradeEstoque(filters = {}) {
+        const whereClause = {
+            status: { [Op.in]: ['DISPONIVEL', 'NOVA', 'EM_AUTORIZACAO'] }
+        };
+
+        if (filters.fornecedorId && filters.fornecedorId !== 'todos') {
+            whereClause.fornecedorId = filters.fornecedorId;
+        }
+        if (filters.marcaId && filters.marcaId !== 'todas') {
+            whereClause.marcaId = filters.marcaId;
+        }
+        if (filters.precoMin) {
+            whereClause.preco_venda = { ...whereClause.preco_venda, [Op.gte]: parseFloat(filters.precoMin) };
+        }
+        if (filters.precoMax) {
+            whereClause.preco_venda = { ...whereClause.preco_venda, [Op.lte]: parseFloat(filters.precoMax) };
+        }
+
+        const pecas = await Peca.findAll({
+            where: whereClause,
+            include: [
+                { model: Categoria, as: 'categoria', attributes: ['nome'] },
+                { model: Tamanho, as: 'tamanho', attributes: ['nome'] }
+            ],
+            attributes: ['id']
+        });
+
+        // Build Matrix
+        const matrix = {};
+        const sizesSet = new Set();
+
+        pecas.forEach(p => {
+            const cat = p.categoria ? p.categoria.nome : 'SEM CATEGORIA';
+            const tam = p.tamanho ? p.tamanho.nome : 'UN';
+
+            sizesSet.add(tam);
+
+            if (!matrix[cat]) matrix[cat] = {};
+            if (!matrix[cat][tam]) matrix[cat][tam] = 0;
+            matrix[cat][tam]++;
+        });
+
+        // Sort sizes (custom logic might be needed for S, M, L vs 38, 40, 42)
+        const sortedSizes = Array.from(sizesSet).sort((a, b) => {
+            // Try to sort numbers
+            const numA = parseInt(a);
+            const numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+
+            // Sort standard sizes
+            const order = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'UN'];
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+
+            return a.localeCompare(b);
+        });
+
+        const result = Object.keys(matrix).map(cat => {
+            const values = sortedSizes.map(size => matrix[cat][size] || 0);
+            return { category: cat, values };
+        });
+
+        return { sizes: sortedSizes, matrix: result };
+    }
+
+    async getVendasPorTamanho(inicio, fim, categoriaId) {
+        const whereClause = {
+            status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
+        };
+
+        if (inicio && fim) {
+            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+        }
+
+        const wherePeca = {};
+        if (categoriaId && categoriaId !== 'all') {
+            // Assuming we can filter by category name or ID. Let's assume ID for now or join.
+            // If the frontend sends 'letras'/'numeros', we might need logic here.
+            // For now, let's support direct Category ID filtering if passed, or ignore if 'all'.
+            // If 'letras'/'numeros' is passed, we'd need to filter by size name pattern, which is complex in SQL.
+            // Let's stick to simple Category ID filter if provided, otherwise all.
+        }
+
+        const vendas = await ItemPedido.findAll({
+            attributes: [
+                [Sequelize.col('peca.tamanho.nome'), 'tamanho'],
+                [Sequelize.fn('COUNT', Sequelize.col('ItemPedido.id')), 'qtd'],
+                [Sequelize.fn('SUM', Sequelize.col('valor_unitario_final')), 'valor']
+            ],
+            include: [
+                {
+                    model: Peca,
+                    as: 'peca',
+                    attributes: [],
+                    where: wherePeca,
+                    include: [{ model: Tamanho, as: 'tamanho', attributes: [] }]
+                },
+                {
+                    model: Pedido,
+                    as: 'pedido',
+                    attributes: [],
+                    where: whereClause
+                }
+            ],
+            group: [Sequelize.col('peca.tamanho.nome')],
+            raw: true,
+            order: [[Sequelize.literal('qtd'), 'DESC']]
+        });
+
+        return vendas.map(v => {
+            const qtd = parseInt(v.qtd || 0);
+            const valor = parseFloat(v.valor || 0);
+            const ticket = qtd > 0 ? valor / qtd : 0;
+
+            // Determine category type based on size name for frontend filtering
+            let category = 'unico';
+            const size = v.tamanho || 'UN';
+            if (['PP', 'P', 'M', 'G', 'GG', 'XG'].includes(size)) category = 'letras';
+            else if (!isNaN(parseInt(size))) category = 'numeros';
+
+            return {
+                size,
+                qtd,
+                valor,
+                ticket,
+                category
+            };
+        });
+    }
+
 }
 
 module.exports = new RelatoriosService();

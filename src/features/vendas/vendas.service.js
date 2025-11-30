@@ -200,6 +200,167 @@ class VendasService {
         await sacolinha.update({ status: 'FECHADA_VIRAR_PEDIDO' });
         return { message: 'Sacolinha pronta para virar pedido' };
     }
+
+    async getSacolinhas(filters = {}) {
+        const where = {};
+        if (filters.status && filters.status !== 'all') where.status = filters.status.toUpperCase();
+        if (filters.search) {
+            // Assuming search by client name. Need to include Pessoa and filter.
+            // Complex query or just filter by client name if included.
+        }
+
+        return await Sacolinha.findAll({
+            where,
+            include: [
+                {
+                    model: Pessoa,
+                    as: 'cliente',
+                    where: filters.search ? {
+                        nome: { [Op.like]: `%${filters.search}%` }
+                    } : undefined
+                },
+                { model: Peca, as: 'itens' } // Assuming association exists
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    async getItensVendidos(search) {
+        if (!search) return [];
+
+        // Search Peca by code/name or Client by name
+        // This is a bit complex because we need to join ItemPedido -> Pedido -> Pessoa
+        // and ItemPedido -> Peca
+
+        return await ItemPedido.findAll({
+            include: [
+                {
+                    model: Pedido,
+                    as: 'pedido',
+                    include: [{ model: Pessoa, as: 'cliente' }, { model: Pessoa, as: 'vendedor' }]
+                },
+                {
+                    model: Peca,
+                    as: 'peca',
+                    where: {
+                        [Op.or]: [
+                            { codigo_etiqueta: { [Op.like]: `%${search}%` } },
+                            { descricao_curta: { [Op.like]: `%${search}%` } }
+                        ],
+                        status: 'VENDIDA' // Only sold items
+                    }
+                }
+            ],
+            limit: 20,
+            order: [['createdAt', 'DESC']]
+        });
+    }
+
+    async processarDevolucao(pecaId, userId) {
+        const t = await sequelize.transaction();
+        try {
+            const peca = await Peca.findByPk(pecaId);
+            if (!peca || peca.status !== 'VENDIDA') throw new Error('Peça não está vendida');
+
+            const itemPedido = await ItemPedido.findOne({
+                where: { pecaId },
+                order: [['createdAt', 'DESC']],
+                include: [{ model: Pedido, as: 'pedido' }]
+            });
+
+            if (!itemPedido) throw new Error('Venda não encontrada para esta peça');
+
+            // Update Peca
+            await peca.update({ status: 'DISPONIVEL' }, { transaction: t });
+
+            // Create Stock Movement
+            await MovimentacaoEstoque.create({
+                pecaId,
+                userId,
+                tipo: 'ENTRADA_DEVOLUCAO',
+                quantidade: 1,
+                motivo: `Devolução Venda ${itemPedido.pedido.codigo_pedido}`,
+                data_movimento: new Date()
+            }, { transaction: t });
+
+            // Generate Credit for Client
+            if (itemPedido.pedido.clienteId) {
+                await CreditoLoja.create({
+                    clienteId: itemPedido.pedido.clienteId,
+                    valor: itemPedido.valor_unitario_final,
+                    data_validade: addMonths(new Date(), 6),
+                    status: 'ATIVO',
+                    codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
+                }, { transaction: t });
+            }
+
+            await t.commit();
+            return { message: 'Devolução processada com sucesso' };
+        } catch (err) {
+            await t.rollback();
+            throw err;
+        }
+    }
+
+    async getDevolucoes() {
+        return await MovimentacaoEstoque.findAll({
+            where: { tipo: 'ENTRADA_DEVOLUCAO' },
+            include: [
+                { model: Peca, as: 'peca' },
+                { model: Pessoa, as: 'usuario' } // Employee who processed
+            ],
+            order: [['data_movimento', 'DESC']]
+        });
+    }
+
+    async getPedidos(filters = {}) {
+        const whereClause = {
+            status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
+        };
+
+        if (filters.search) {
+            whereClause[Op.or] = [
+                { codigo_pedido: { [Op.like]: `%${filters.search}%` } },
+                { '$cliente.nome$': { [Op.like]: `%${filters.search}%` } }
+            ];
+        }
+
+        if (filters.inicio && filters.fim) {
+            whereClause.data_pedido = { [Op.between]: [new Date(filters.inicio), new Date(filters.fim)] };
+        }
+
+        const pedidos = await Pedido.findAll({
+            where: whereClause,
+            include: [
+                { model: Pessoa, as: 'cliente', attributes: ['nome'] },
+                { model: Pessoa, as: 'vendedor', attributes: ['nome'] },
+                { model: PagamentoPedido, as: 'pagamentos', attributes: ['metodo'] },
+                {
+                    model: ItemPedido,
+                    as: 'itens',
+                    include: [{ model: Peca, as: 'peca', attributes: ['descricao_curta', 'codigo_etiqueta'], include: [{ model: Pessoa, as: 'fornecedor', attributes: ['nome'] }] }]
+                }
+            ],
+            order: [['data_pedido', 'DESC']]
+        });
+
+        return pedidos.map(p => ({
+            id: p.id,
+            codigo: p.codigo_pedido,
+            data: new Date(p.data_pedido).toLocaleDateString('pt-BR'),
+            vendedor: p.vendedor ? p.vendedor.nome : 'LOJA',
+            cliente: p.cliente ? p.cliente.nome : 'CONSUMIDOR FINAL',
+            pagamento: p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos.map(pg => pg.metodo).join(', ') : 'PENDENTE',
+            valor: parseFloat(p.total || 0),
+            status: p.status,
+            itens: p.itens.map(i => ({
+                id: i.peca ? i.peca.codigo_etiqueta : 'N/A',
+                desc: i.peca ? i.peca.descricao_curta : 'ITEM REMOVIDO',
+                fornecedor: i.peca && i.peca.fornecedor ? i.peca.fornecedor.nome : 'LOJA',
+                preco: parseFloat(i.valor_unitario_final || 0)
+            }))
+        }));
+    }
 }
 
 module.exports = new VendasService();
