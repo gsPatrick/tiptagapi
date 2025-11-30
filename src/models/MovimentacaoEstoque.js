@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
             references: { model: 'users', key: 'id' },
         },
         tipo: {
-            type: DataTypes.ENUM('ENTRADA', 'SAIDA_VENDA', 'DEVOLUCAO', 'AJUSTE_INVENTARIO', 'EXTRAVIO'),
+            type: DataTypes.ENUM('ENTRADA', 'SAIDA_VENDA', 'DEVOLUCAO', 'AJUSTE_INVENTARIO', 'EXTRAVIO', 'ENTRADA_DEVOLUCAO'),
             allowNull: false,
         },
         quantidade: {

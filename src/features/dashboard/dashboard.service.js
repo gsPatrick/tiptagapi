@@ -44,7 +44,7 @@ class DashboardService {
       SELECT SUM(
         CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END
       ) as total_pendente
-      FROM conta_corrente_pessoa ccp
+      FROM conta_corrente_pessoas ccp
       JOIN pessoas p ON ccp."pessoaId" = p.id
       WHERE p.is_fornecedor = true
     `);
@@ -53,13 +53,13 @@ class DashboardService {
         // Sum of all credits - Sum of all debits for suppliers.
         // This is global.
         const totalCreditos = await sequelize.query(`
-      SELECT SUM(valor) as total FROM conta_corrente_pessoa ccp
+      SELECT SUM(valor) as total FROM conta_corrente_pessoas ccp
       JOIN pessoas p ON ccp."pessoaId" = p.id
       WHERE p.is_fornecedor = true AND ccp.tipo = 'CREDITO'
     `, { type: sequelize.QueryTypes.SELECT });
 
         const totalDebitos = await sequelize.query(`
-      SELECT SUM(valor) as total FROM conta_corrente_pessoa ccp
+      SELECT SUM(valor) as total FROM conta_corrente_pessoas ccp
       JOIN pessoas p ON ccp."pessoaId" = p.id
       WHERE p.is_fornecedor = true AND ccp.tipo = 'DEBITO'
     `, { type: sequelize.QueryTypes.SELECT });
