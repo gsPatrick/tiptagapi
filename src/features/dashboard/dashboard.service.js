@@ -117,13 +117,18 @@ class DashboardService {
         const vendas12m = await Pedido.sum('total', { where: { status: 'PAGO', data_pedido: { [Op.gte]: twelveMonthsAgo } } });
         const saidas12m = await ContaPagarReceber.sum('valor_pago', { where: { tipo: 'PAGAR', status: 'PAGO', data_pagamento: { [Op.gte]: twelveMonthsAgo } } });
         // Repasses 12m (approx)
-        const repasses12m = await ContaCorrentePessoa.sum('valor', {
-            where: {
-                tipo: 'DEBITO',
-                data_movimento: { [Op.gte]: twelveMonthsAgo }
-            },
-            include: [{ model: Pessoa, as: 'pessoa', where: { is_fornecedor: true } }]
+        const [repassesResult] = await sequelize.query(`
+            SELECT SUM(ccp.valor) as total
+            FROM conta_corrente_pessoas ccp
+            JOIN pessoas p ON ccp.pessoa_id = p.id
+            WHERE ccp.tipo = 'DEBITO'
+            AND ccp.data_movimento >= :date
+            AND p.is_fornecedor = true
+        `, {
+            replacements: { date: twelveMonthsAgo },
+            type: sequelize.QueryTypes.SELECT
         });
+        const repasses12m = repassesResult ? parseFloat(repassesResult.total || 0) : 0;
 
         const fornecedoresCount = await Pessoa.count({ where: { is_fornecedor: true } });
         const clientesCount = await Pessoa.count({ where: { is_cliente: true } });
