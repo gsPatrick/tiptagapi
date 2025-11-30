@@ -1,4 +1,4 @@
-const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize } = require('../../models');
+const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize, ContaCorrentePessoa, Pessoa } = require('../../models');
 const { Op } = require('sequelize');
 const { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } = require('date-fns');
 
@@ -91,14 +91,87 @@ class DashboardService {
             }
         });
 
+        // --- NEW METRICS FOR FRONTEND ---
+        const yesterdayStart = startOfDay(subDays(new Date(), 1));
+        const yesterdayEnd = endOfDay(subDays(new Date(), 1));
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        const twelveMonthsAgo = subDays(new Date(), 365);
+
+        // KPIs
+        const novas = await Peca.count({ where: { status: 'NOVA' } });
+        const novas30d = await Peca.count({ where: { status: 'NOVA', data_entrada: { [Op.gte]: thirtyDaysAgo } } });
+        const novasOntem = await Peca.count({ where: { status: 'NOVA', data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } });
+
+        const emAutorizacao = await Peca.count({ where: { status: 'EM_AUTORIZACAO' } });
+        const autorizadasOntem = await Peca.count({ where: { status: 'DISPONIVEL', data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } }); // Approx
+
+        const aVenda = await Peca.count({ where: { status: 'DISPONIVEL' } });
+        const aVendaOntem = await Peca.count({ where: { status: 'DISPONIVEL', data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } });
+
+        const vendidas30d = await Peca.count({ where: { status: 'VENDIDA', data_venda: { [Op.gte]: thirtyDaysAgo } } });
+
+        // Resumo Geral
+        const estoqueTotal = await Peca.count();
+        const valorEstoque = await Peca.sum('preco_venda', { where: { status: { [Op.in]: ['NOVA', 'DISPONIVEL', 'EM_AUTORIZACAO'] } } });
+
+        const vendas12m = await Pedido.sum('total', { where: { status: 'PAGO', data_pedido: { [Op.gte]: twelveMonthsAgo } } });
+        const saidas12m = await ContaPagarReceber.sum('valor_pago', { where: { tipo: 'PAGAR', status: 'PAGO', data_pagamento: { [Op.gte]: twelveMonthsAgo } } });
+        // Repasses 12m (approx)
+        const repasses12m = await ContaCorrentePessoa.sum('valor', {
+            where: {
+                tipo: 'DEBITO',
+                data_movimento: { [Op.gte]: twelveMonthsAgo }
+            },
+            include: [{ model: Pessoa, as: 'pessoa', where: { is_fornecedor: true } }]
+        });
+
+        const fornecedoresCount = await Pessoa.count({ where: { is_fornecedor: true } });
+        const clientesCount = await Pessoa.count({ where: { is_cliente: true } });
+
+        // Vendas Mes (Area Chart)
+        // Group by month for the last 6-12 months
+        const vendasMesChart = await Pedido.findAll({
+            attributes: [
+                [sequelize.fn('TO_CHAR', sequelize.col('data_pedido'), 'Mon'), 'name'],
+                [sequelize.fn('COUNT', sequelize.col('id')), 'vendas']
+            ],
+            where: {
+                status: 'PAGO',
+                data_pedido: { [Op.gte]: twelveMonthsAgo }
+            },
+            group: [sequelize.fn('TO_CHAR', sequelize.col('data_pedido'), 'Mon'), sequelize.fn('DATE_TRUNC', 'month', sequelize.col('data_pedido'))],
+            order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('data_pedido')), 'ASC']]
+        });
+
         return {
+            kpis: {
+                novas,
+                novas30d,
+                novasOntem,
+                emAutorizacao,
+                autorizadasOntem,
+                aVenda,
+                aVendaOntem,
+                vendidas30d
+            },
+            vendas7Dias: vendasChart.map(v => ({ name: format(new Date(v.getDataValue('data')), 'dd/MM'), vendas: parseFloat(v.getDataValue('total')) })),
+            vendasMes: vendasMesChart,
+            resumo: {
+                estoqueTotal,
+                valorEstoque: parseFloat(valorEstoque || 0),
+                vendas12m: parseFloat(vendas12m || 0),
+                saidas12m: parseFloat(saidas12m || 0),
+                repasses12m: parseFloat(repasses12m || 0),
+                fornecedores: fornecedoresCount,
+                clientes: clientesCount
+            },
+            // Keep old structure just in case
             cards: {
                 vendas_hoje: vendasHoje || 0,
                 pecas_cadastradas_mes: pecasMes || 0,
                 contas_pagar_pendente: contasPagar || 0,
                 repasses_pendentes: repassesPendentes > 0 ? repassesPendentes : 0
             },
-            grafico_vendas_7d: vendasChart,
             alertas: {
                 pecas_paradas_180d: pecasParadas
             }
