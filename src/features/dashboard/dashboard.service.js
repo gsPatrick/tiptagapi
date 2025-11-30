@@ -1,4 +1,4 @@
-const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize, ContaCorrentePessoa, Pessoa } = require('../../models');
+const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize, ContaCorrentePessoa, Pessoa, Notificacao } = require('../../models');
 const { Op } = require('sequelize');
 const { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } = require('date-fns');
 
@@ -148,6 +148,12 @@ class DashboardService {
             order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('data_pedido')), 'ASC']]
         });
 
+        // Notifications
+        const notificacoes = await Notificacao.findAll({
+            limit: 5,
+            order: [['createdAt', 'DESC']]
+        });
+
         return {
             kpis: {
                 novas,
@@ -170,6 +176,7 @@ class DashboardService {
                 fornecedores: fornecedoresCount,
                 clientes: clientesCount
             },
+            notificacoes,
             // Keep old structure just in case
             cards: {
                 vendas_hoje: vendasHoje || 0,

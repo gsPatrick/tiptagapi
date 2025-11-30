@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { CreditoLoja, Peca, Sacolinha, FilaBot, Configuracao, Pessoa } = require('../models');
+const { CreditoLoja, Peca, Sacolinha, FilaBot, Configuracao, Pessoa, Notificacao } = require('../models');
 const { Op } = require('sequelize');
 const { subDays } = require('date-fns');
 const automacaoService = require('../features/automacao/automacao.service');
@@ -71,7 +71,13 @@ class CronService {
                 status: 'DISPONIVEL'
             }
         });
-        // Log or notify
+        if (pecas.length > 0) {
+            await Notificacao.create({
+                mensagem: `Hoje ${pecas.length} peças foram identificadas com mais de 180 dias em estoque.`,
+                tipo: 'ALERTA'
+            });
+            console.log(`Notificacao criada: ${pecas.length} pecas paradas.`);
+        }
     }
 
     async checkSacolinhasVencidas() {
