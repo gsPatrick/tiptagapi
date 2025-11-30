@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { CreditoLoja, Peca, Sacolinha, FilaBot, Configuracao, Pessoa } = require('../../models');
+const { CreditoLoja, Peca, Sacolinha, FilaBot, Configuracao, Pessoa } = require('../models');
 const { Op } = require('sequelize');
 const { subDays } = require('date-fns');
 const automacaoService = require('../features/automacao/automacao.service');
