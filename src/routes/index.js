@@ -27,6 +27,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/fiscal', fiscalRoutes);
 router.use('/cadastros', cadastrosRoutes);
 router.use('/admin', adminRoutes);
+router.get('/public/system-config', require('../features/admin/admin.controller').getPublicConfigs);
 router.use('/', relatoriosRoutes); // Mount at root because routes define their own prefixes like /dashboard and /relatorios
 
 module.exports = router;

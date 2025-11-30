@@ -59,6 +59,18 @@ class AdminController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+    async getPublicConfigs(req, res) {
+        try {
+            const configs = await adminService.getAllConfigs();
+            // Filter only public configurations
+            const publicKeys = ['SYSTEM_COLOR_PRIMARY', 'SYSTEM_LOGO'];
+            const publicConfigs = configs.filter(c => publicKeys.includes(c.chave));
+            return res.json(publicConfigs);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new AdminController();
