@@ -16,6 +16,19 @@ async function startServer() {
         await sequelize.sync({ alter: true });
         console.log('Models synced!');
 
+        // 2.1 Create default user
+        const { User } = require('./src/models');
+        const user = await User.findOne({ where: { email: 'patrick@gmail.com' } });
+        if (!user) {
+            await User.create({
+                nome: 'Patrick',
+                email: 'patrick@gmail.com',
+                senha_hash: 'patrick123',
+                role: 'ADMIN'
+            });
+            console.log('Default user created: patrick@gmail.com');
+        }
+
         // 3. Init Background Jobs
         cronService.init();
         queueWorker.init();
