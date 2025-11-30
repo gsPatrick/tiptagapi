@@ -1,7 +1,7 @@
 const {
     Pedido, ItemPedido, PagamentoPedido, Peca,
     ContaCorrentePessoa, CreditoLoja, Pessoa, Sacolinha,
-    MovimentacaoEstoque, CaixaDiario, Configuracao, sequelize
+    MovimentacaoEstoque, CaixaDiario, Configuracao, sequelize, User
 } = require('../../models');
 const { Op } = require('sequelize');
 const { addMonths, setDate, setHours, setMinutes, setSeconds, isAfter } = require('date-fns');
@@ -237,7 +237,7 @@ class VendasService {
                 {
                     model: Pedido,
                     as: 'pedido',
-                    include: [{ model: Pessoa, as: 'cliente' }, { model: Pessoa, as: 'vendedor' }]
+                    include: [{ model: Pessoa, as: 'cliente' }, { model: User, as: 'vendedor' }]
                 },
                 {
                     model: Peca,
@@ -307,7 +307,7 @@ class VendasService {
             where: { tipo: 'ENTRADA_DEVOLUCAO' },
             include: [
                 { model: Peca, as: 'peca' },
-                { model: Pessoa, as: 'usuario' } // Employee who processed
+                { model: User, as: 'usuario' } // Employee who processed
             ],
             order: [['data_movimento', 'DESC']]
         });
@@ -333,7 +333,7 @@ class VendasService {
             where: whereClause,
             include: [
                 { model: Pessoa, as: 'cliente', attributes: ['nome'] },
-                { model: Pessoa, as: 'vendedor', attributes: ['nome'] },
+                { model: User, as: 'vendedor', attributes: ['nome'] },
                 { model: PagamentoPedido, as: 'pagamentos', attributes: ['metodo'] },
                 {
                     model: ItemPedido,

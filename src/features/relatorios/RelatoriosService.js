@@ -1,4 +1,4 @@
-const { Pedido, ItemPedido, Peca, Categoria, Marca, User, Sequelize } = require('../../models');
+const { Pedido, ItemPedido, Peca, Categoria, Marca, User, Sequelize, Pessoa, Tamanho, Cor, PagamentoPedido } = require('../../models');
 const { Op } = require('sequelize');
 
 class RelatoriosService {
@@ -243,7 +243,7 @@ class RelatoriosService {
                     model: Pedido,
                     as: 'pedido',
                     attributes: ['id', 'data_pedido', 'status'],
-                    include: [{ model: User, as: 'cliente', attributes: ['nome'] }],
+                    include: [{ model: Pessoa, as: 'cliente', attributes: ['nome'] }],
                     where: whereClause
                 }
             ],
@@ -433,7 +433,7 @@ class RelatoriosService {
                 [Sequelize.fn('SUM', Sequelize.col('total')), 'totalCompras'],
                 [Sequelize.fn('COUNT', Sequelize.col('Pedido.id')), 'qtdCompras']
             ],
-            include: [{ model: User, as: 'cliente', attributes: [] }],
+            include: [{ model: Pessoa, as: 'cliente', attributes: [] }],
             where: whereClause,
             group: [Sequelize.col('cliente.id')],
             raw: true,
@@ -653,7 +653,7 @@ class RelatoriosService {
                 where: whereBase,
                 attributes: ['id', 'data_pedido', 'status'],
                 include: [
-                    { model: User, as: 'cliente', attributes: ['nome'] },
+                    { model: Pessoa, as: 'cliente', attributes: ['nome'] },
                     { model: PagamentoPedido, as: 'pagamentos', attributes: ['metodo'] }
                 ]
             }

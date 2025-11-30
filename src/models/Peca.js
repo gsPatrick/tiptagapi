@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             Peca.belongsTo(models.Campanha, { foreignKey: 'campanhaId', as: 'campanha' });
             Peca.hasMany(models.FotoPeca, { foreignKey: 'pecaId', as: 'fotos' });
             Peca.hasMany(models.MovimentacaoEstoque, { foreignKey: 'pecaId', as: 'movimentacoes' });
+            Peca.belongsTo(models.Sacolinha, { foreignKey: 'sacolinhaId', as: 'sacolinha' });
         }
     }
     Peca.init({
@@ -131,6 +132,11 @@ module.exports = (sequelize, DataTypes) => {
         campanhaId: {
             type: DataTypes.INTEGER,
             references: { model: 'campanhas', key: 'id' },
+            allowNull: true,
+        },
+        sacolinhaId: {
+            type: DataTypes.INTEGER,
+            references: { model: 'sacolinhas', key: 'id' },
             allowNull: true,
         },
     }, {

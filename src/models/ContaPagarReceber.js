@@ -38,7 +38,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
         },
         status: {
-            type: DataTypes.ENUM('ABERTO', 'PAGO', 'ATRASADO'),
+            type: DataTypes.ENUM('ABERTO', 'PAGO', 'ATRASADO', 'PENDENTE'),
             defaultValue: 'ABERTO',
         },
         categoriaId: {
