@@ -1,4 +1,4 @@
-const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize, ContaCorrentePessoa, Pessoa, Notificacao } = require('../../models');
+const { Pedido, Peca, ContaPagarReceber, Repasse, sequelize, ContaCorrentePessoa, Pessoa, Notificacao, PagamentoPedido } = require('../../models');
 const { Op } = require('sequelize');
 const { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format } = require('date-fns');
 
