@@ -47,6 +47,16 @@ class PessoasController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async getSaldoPermuta(req, res) {
+        try {
+            const { id } = req.params;
+            const saldo = await pessoasService.getSaldoPermuta(id);
+            return res.json(saldo);
+        } catch (error) {
+            return res.status(400).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = new PessoasController();

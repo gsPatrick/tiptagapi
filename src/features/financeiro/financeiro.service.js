@@ -100,16 +100,42 @@ class FinanceiroService {
         }
 
         // Receita: Vendas (PAGO, SEPARACAO, ENVIADO, ENTREGUE)
+        // Receita: Vendas (PAGO, SEPARACAO, ENVIADO, ENTREGUE)
         const vendas = await Pedido.findAll({
             where: {
                 status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] },
                 data_pedido: whereDate
             },
+            include: [{
+                model: PagamentoPedido,
+                as: 'pagamentos',
+                attributes: ['metodo', 'valor']
+            }],
             attributes: ['subtotal', 'desconto', 'valor_frete', 'total']
         });
 
-        const receitaVendas = vendas.reduce((acc, p) => acc + parseFloat(p.subtotal || 0) - parseFloat(p.desconto || 0), 0);
-        const receitaFrete = vendas.reduce((acc, p) => acc + parseFloat(p.valor_frete || 0), 0);
+        let receitaVendasReal = 0;
+        let receitaVendasPermuta = 0;
+        let receitaFrete = 0;
+
+        vendas.forEach(p => {
+            receitaFrete += parseFloat(p.valor_frete || 0);
+
+            if (p.pagamentos && p.pagamentos.length > 0) {
+                p.pagamentos.forEach(pay => {
+                    if (pay.metodo === 'VOUCHER_PERMUTA') {
+                        receitaVendasPermuta += parseFloat(pay.valor || 0);
+                    } else {
+                        receitaVendasReal += parseFloat(pay.valor || 0);
+                    }
+                });
+            } else {
+                // Fallback
+                receitaVendasReal += parseFloat(p.total || 0) - parseFloat(p.valor_frete || 0);
+            }
+        });
+
+        const receitaVendas = receitaVendasReal + receitaVendasPermuta;
         const receitaTotal = receitaVendas + receitaFrete;
 
         // Devoluções
@@ -147,6 +173,8 @@ class FinanceiroService {
 
         return {
             receitaVendas,
+            receitaVendasReal,
+            receitaVendasPermuta,
             receitaFrete,
             receitaTotal,
             totalDevolucoes,

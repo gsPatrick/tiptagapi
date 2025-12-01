@@ -114,7 +114,29 @@ class DashboardService {
         const estoqueTotal = await Peca.count();
         const valorEstoque = await Peca.sum('preco_venda', { where: { status: { [Op.in]: ['NOVA', 'DISPONIVEL', 'EM_AUTORIZACAO'] } } });
 
-        const vendas12m = await Pedido.sum('total', { where: { status: 'PAGO', data_pedido: { [Op.gte]: twelveMonthsAgo } } });
+        const vendas12mOrders = await Pedido.findAll({
+            where: { status: 'PAGO', data_pedido: { [Op.gte]: twelveMonthsAgo } },
+            include: [{ model: PagamentoPedido, as: 'pagamentos', attributes: ['metodo', 'valor'] }],
+            attributes: ['total']
+        });
+
+        let vendas12mReal = 0;
+        let vendas12mPermuta = 0;
+
+        vendas12mOrders.forEach(p => {
+            if (p.pagamentos && p.pagamentos.length > 0) {
+                p.pagamentos.forEach(pay => {
+                    if (pay.metodo === 'VOUCHER_PERMUTA') {
+                        vendas12mPermuta += parseFloat(pay.valor || 0);
+                    } else {
+                        vendas12mReal += parseFloat(pay.valor || 0);
+                    }
+                });
+            } else {
+                vendas12mReal += parseFloat(p.total || 0);
+            }
+        });
+        const vendas12m = vendas12mReal + vendas12mPermuta;
         const saidas12m = await ContaPagarReceber.sum('valor_pago', { where: { tipo: 'PAGAR', status: 'PAGO', data_pagamento: { [Op.gte]: twelveMonthsAgo } } });
         // Repasses 12m (approx)
         const [repassesResult] = await sequelize.query(`
@@ -171,6 +193,8 @@ class DashboardService {
                 estoqueTotal,
                 valorEstoque: parseFloat(valorEstoque || 0),
                 vendas12m: parseFloat(vendas12m || 0),
+                vendas12mReal: parseFloat(vendas12mReal || 0),
+                vendas12mPermuta: parseFloat(vendas12mPermuta || 0),
                 saidas12m: parseFloat(saidas12m || 0),
                 repasses12m: parseFloat(repasses12m || 0),
                 fornecedores: fornecedoresCount,

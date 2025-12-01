@@ -10,5 +10,6 @@ router.get('/', pessoasController.getAll);
 router.get('/:id', pessoasController.getById);
 router.put('/:id', pessoasController.update);
 router.delete('/:id', pessoasController.delete);
+router.get('/:id/saldo-permuta', pessoasController.getSaldoPermuta);
 
 module.exports = router;

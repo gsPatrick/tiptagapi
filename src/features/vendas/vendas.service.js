@@ -4,7 +4,7 @@ const {
     MovimentacaoEstoque, CaixaDiario, Configuracao, sequelize, User
 } = require('../../models');
 const { Op } = require('sequelize');
-const { addMonths, setDate, setHours, setMinutes, setSeconds, isAfter } = require('date-fns');
+const { addMonths, addDays, setDate, setHours, setMinutes, setSeconds, isAfter } = require('date-fns');
 const automacaoService = require('../automacao/automacao.service');
 
 class VendasService {
@@ -77,6 +77,19 @@ class VendasService {
                         data_movimento: new Date(),
                     }, { transaction: t });
                 }
+
+                if (peca.tipo_aquisicao === 'PERMUTA' && peca.fornecedorId) {
+                    const valorCredito = parseFloat(valorVenda) * 0.5; // 50% Split
+                    const validade = addDays(new Date(), 30); // 30 Days Validity
+
+                    await CreditoLoja.create({
+                        clienteId: peca.fornecedorId,
+                        valor: valorCredito,
+                        data_validade: validade,
+                        status: 'ATIVO',
+                        codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
+                    }, { transaction: t });
+                }
             }
 
             let totalPago = 0;
@@ -98,6 +111,51 @@ class VendasService {
                         descricao: `Uso de crédito Pedido ${pedido.codigo_pedido}`,
                         referencia_origem: pedido.id,
                     }, { transaction: t });
+                }
+
+                if (pag.metodo === 'VOUCHER_PERMUTA') {
+                    if (!clienteId) throw new Error('Cliente não identificado para uso de Voucher Permuta.');
+
+                    // Busca Segura
+                    const creditosDisponiveis = await CreditoLoja.findAll({
+                        where: {
+                            clienteId,
+                            status: 'ATIVO',
+                            valor: { [Op.gt]: 0 },
+                            data_validade: { [Op.gte]: new Date() } // Apenas válidos
+                        },
+                        order: [['data_validade', 'ASC']], // FIFO: Consome os que vencem primeiro
+                        transaction: t
+                    });
+
+                    // Validação Rígida
+                    const totalDisponivel = creditosDisponiveis.reduce((acc, c) => acc + parseFloat(c.valor), 0);
+                    if (totalDisponivel < parseFloat(pag.valor)) {
+                        throw new Error('Saldo de permuta insuficiente ou expirado.');
+                    }
+
+                    // Consumo (Loop de Débito)
+                    let valorRestante = parseFloat(pag.valor);
+                    for (const credito of creditosDisponiveis) {
+                        if (valorRestante <= 0) break;
+
+                        const valorCredito = parseFloat(credito.valor);
+
+                        if (valorCredito >= valorRestante) {
+                            const novoValor = valorCredito - valorRestante;
+                            await credito.update({
+                                valor: novoValor,
+                                status: novoValor === 0 ? 'USADO' : 'ATIVO'
+                            }, { transaction: t });
+                            valorRestante = 0;
+                        } else {
+                            valorRestante -= valorCredito;
+                            await credito.update({
+                                valor: 0,
+                                status: 'USADO'
+                            }, { transaction: t });
+                        }
+                    }
                 }
 
                 if (pag.metodo === 'DINHEIRO') {

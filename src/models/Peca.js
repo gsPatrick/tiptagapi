@@ -41,7 +41,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
         },
         tipo_aquisicao: {
-            type: DataTypes.ENUM('COMPRA', 'CONSIGNACAO'),
+            type: DataTypes.ENUM('COMPRA', 'CONSIGNACAO', 'PERMUTA'),
             allowNull: false,
         },
         status: {
@@ -145,6 +145,18 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'pecas',
         paranoid: true,
         timestamps: true,
+        hooks: {
+            afterUpdate: async (peca, options) => {
+                // Avoid infinite loop if flag is set
+                if (options.skipOutbound) return;
+
+                // Notify E-commerce about status/stock change
+                const outboundService = require('../features/integracao/outbound.service');
+                outboundService.notifyStockUpdate(peca).catch(err =>
+                    console.error('Background Outbound notification failed:', err.message)
+                );
+            }
+        }
     });
     return Peca;
 };

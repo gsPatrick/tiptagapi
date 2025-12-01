@@ -17,7 +17,22 @@ class CronService {
             console.log('Running Daily Cron Jobs...');
             await this.checkPecasParadas();
             await this.checkSacolinhasVencidas();
+            await this.checkCreditosVencidos();
         });
+    }
+
+    async checkCreditosVencidos() {
+        const today = new Date();
+        const [affectedCount] = await CreditoLoja.update(
+            { status: 'EXPIRADO' },
+            {
+                where: {
+                    status: 'ATIVO',
+                    data_validade: { [Op.lt]: today }
+                }
+            }
+        );
+        console.log(`Rotina de expiração: ${affectedCount} créditos expirados.`);
     }
 
     async checkSmartCashbackReset() {

@@ -13,8 +13,36 @@ class RelatoriosService {
 
         const ticketMedio = totalPedidos > 0 ? totalVendas / totalPedidos : 0;
 
+        const pagamentos = await PagamentoPedido.findAll({
+            attributes: [
+                'metodo',
+                [Sequelize.fn('SUM', Sequelize.col('valor')), 'total']
+            ],
+            include: [{
+                model: Pedido,
+                as: 'pedido',
+                attributes: [],
+                where: { status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] } }
+            }],
+            group: ['metodo'],
+            raw: true
+        });
+
+        let totalReal = 0;
+        let totalPermuta = 0;
+
+        pagamentos.forEach(p => {
+            if (p.metodo === 'VOUCHER_PERMUTA') {
+                totalPermuta += parseFloat(p.total || 0);
+            } else {
+                totalReal += parseFloat(p.total || 0);
+            }
+        });
+
         return {
             totalVendas: parseFloat(totalVendas || 0).toFixed(2),
+            totalReal: totalReal.toFixed(2),
+            totalPermuta: totalPermuta.toFixed(2),
             totalPedidos,
             ticketMedio: parseFloat(ticketMedio).toFixed(2)
         };
@@ -127,15 +155,25 @@ class RelatoriosService {
         const performance = await Pedido.findAll({
             attributes: [
                 [Sequelize.col('vendedor.nome'), 'vendedor'],
-                [Sequelize.fn('SUM', Sequelize.col('total')), 'total_vendas'],
-                [Sequelize.fn('COUNT', Sequelize.col('Pedido.id')), 'quantidade_pedidos'],
+                [Sequelize.fn('SUM', Sequelize.col('pagamentos.valor')), 'total_vendas'],
+                [Sequelize.fn('COUNT', Sequelize.fn('DISTINCT', Sequelize.col('Pedido.id'))), 'quantidade_pedidos'],
                 [Sequelize.fn('SUM', Sequelize.col('desconto')), 'total_descontos']
             ],
-            include: [{ model: User, as: 'vendedor', attributes: [] }],
+            include: [
+                { model: User, as: 'vendedor', attributes: [] },
+                {
+                    model: PagamentoPedido,
+                    as: 'pagamentos',
+                    attributes: [],
+                    where: { metodo: { [Op.ne]: 'VOUCHER_PERMUTA' } },
+                    required: false
+                }
+            ],
             where: whereClause,
             group: [Sequelize.col('vendedor.nome')],
             raw: true,
-            order: [[Sequelize.literal('total_vendas'), 'DESC']]
+            order: [[Sequelize.literal('total_vendas'), 'DESC']],
+            subQuery: false
         });
 
         return performance.map(p => {

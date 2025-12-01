@@ -94,7 +94,10 @@ class IntegracaoService {
                     status: 'VENDIDA',
                     data_venda: new Date(),
                     data_saida_estoque: new Date()
-                }, { transaction: t });
+                }, {
+                    transaction: t,
+                    skipOutbound: true // Prevent infinite loop
+                });
 
                 await ItemPedido.create({
                     pedidoId: pedido.id,

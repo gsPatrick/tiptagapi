@@ -1,4 +1,5 @@
-const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental } = require('../../models');
+const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido } = require('../../models');
+const { Op } = require('sequelize');
 
 class PessoasService {
     async create(data) {
@@ -63,6 +64,47 @@ class PessoasService {
         if (!pessoa) throw new Error('Pessoa not found');
         await pessoa.destroy();
         return { message: 'Pessoa deleted successfully' };
+    }
+
+    async getSaldoPermuta(pessoaId) {
+        const creditos = await CreditoLoja.findAll({
+            where: {
+                clienteId: pessoaId,
+                status: 'ATIVO',
+                data_validade: { [Op.gte]: new Date() },
+                valor: { [Op.gt]: 0 }
+            },
+            order: [['data_validade', 'ASC']]
+        });
+
+        const total = creditos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
+        const nextExpiration = creditos.length > 0 ? creditos[0].data_validade : null;
+
+        // History: Usage
+        const usos = await PagamentoPedido.findAll({
+            where: { metodo: 'VOUCHER_PERMUTA' },
+            include: [{
+                model: Pedido,
+                as: 'pedido',
+                where: { clienteId: pessoaId },
+                attributes: ['id', 'codigo_pedido', 'data_pedido']
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const historico = usos.map(u => ({
+            id: u.id,
+            data: u.pedido ? u.pedido.data_pedido : u.createdAt,
+            descricao: u.pedido ? `Abatimento Pedido ${u.pedido.codigo_pedido}` : 'Uso de Voucher',
+            valor: parseFloat(u.valor),
+            tipo: 'USO'
+        }));
+
+        return {
+            saldo: total,
+            proximoVencimento: nextExpiration,
+            historico
+        };
     }
 }
 

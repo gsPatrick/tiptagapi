@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             references: { model: 'pedidos', key: 'id' },
         },
         metodo: {
-            type: DataTypes.ENUM('PIX', 'CREDITO', 'DEBITO', 'DINHEIRO', 'CREDITO_LOJA'),
+            type: DataTypes.ENUM('PIX', 'CREDITO', 'DEBITO', 'DINHEIRO', 'CREDITO_LOJA', 'VOUCHER_PERMUTA'),
             allowNull: false,
         },
         valor: {
