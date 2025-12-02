@@ -2,8 +2,11 @@ const express = require('express');
 const router = express.Router();
 const catalogoController = require('./catalogo.controller');
 const { authMiddleware } = require('../../middleware/auth.middleware');
+const upload = require('../../middleware/upload.middleware');
 
 router.use(authMiddleware);
+
+router.post('/upload', upload.single('file'), catalogoController.uploadImage);
 
 router.post('/pecas', catalogoController.createPeca);
 router.get('/pecas', catalogoController.getAllPecas);

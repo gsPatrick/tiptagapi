@@ -49,6 +49,21 @@ class CatalogoController {
         }
     }
 
+    async uploadImage(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            // Return the full URL
+            const protocol = req.protocol;
+            const host = req.get('host');
+            const url = `${protocol}://${host}/uploads/${req.file.filename}`;
+            return res.json({ url });
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async deletePeca(req, res) {
         try {
             await catalogoService.deletePeca(req.params.id);

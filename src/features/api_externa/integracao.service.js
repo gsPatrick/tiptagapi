@@ -90,11 +90,19 @@ class IntegracaoService {
 
             // 3. Update Stock & Create Items
             for (const { peca, valor } of pecasParaVenda) {
-                await peca.update({
-                    status: 'VENDIDA',
-                    data_venda: new Date(),
-                    data_saida_estoque: new Date()
-                }, {
+                // Decrement Stock Logic
+                const novaQuantidade = peca.quantidade - 1;
+                const updateData = {
+                    quantidade: novaQuantidade
+                };
+
+                if (novaQuantidade <= 0) {
+                    updateData.status = 'VENDIDA';
+                    updateData.data_venda = new Date();
+                    updateData.data_saida_estoque = new Date();
+                }
+
+                await peca.update(updateData, {
                     transaction: t,
                     skipOutbound: true // Prevent infinite loop
                 });

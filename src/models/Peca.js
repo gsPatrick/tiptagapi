@@ -48,6 +48,16 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.ENUM('NOVA', 'EM_AUTORIZACAO', 'DISPONIVEL', 'RESERVADA_SACOLINHA', 'RESERVADA_ECOMMERCE', 'VENDIDA', 'DEVOLVIDA_FORNECEDOR', 'DOADA', 'EXTRAVIADA'),
             defaultValue: 'NOVA',
         },
+        quantidade: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+            allowNull: false,
+        },
+        quantidade_inicial: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+            allowNull: false,
+        },
         // Preços
         preco_custo: {
             type: DataTypes.DECIMAL(10, 2),

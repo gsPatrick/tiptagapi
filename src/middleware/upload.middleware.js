@@ -1,18 +1,36 @@
 const multer = require('multer');
 const path = require('path');
-const crypto = require('crypto');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const uploadDir = path.resolve(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, path.resolve(__dirname, '..', '..', 'uploads')); // Ensure 'uploads' folder exists
+        cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        crypto.randomBytes(16, (err, hash) => {
-            if (err) cb(err);
-            const fileName = `${hash.toString('hex')}-${file.originalname}`;
-            cb(null, fileName);
-        });
-    },
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
 });
 
-module.exports = multer({ storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const filetypes = /jpeg|jpg|png|webp/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Error: File upload only supports the following filetypes - ' + filetypes));
+    }
+});
+
+module.exports = upload;

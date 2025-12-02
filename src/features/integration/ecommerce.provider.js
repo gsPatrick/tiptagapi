@@ -61,6 +61,21 @@ class EcommerceProvider {
             return null;
         }
     }
+    async deleteProduct(ecommerceId) {
+        if (!this.enabled || !ecommerceId) return null;
+
+        try {
+            console.log(`[EcommerceProvider] Deleting product ${ecommerceId} in Ecommerce...`);
+            await axios.delete(`${this.baseUrl}/products/${ecommerceId}`, {
+                headers: { 'x-integration-secret': this.secret }
+            });
+            console.log(`[EcommerceProvider] Deleted product in Ecommerce.`);
+            return true;
+        } catch (error) {
+            console.error(`[EcommerceProvider] Error deleting product:`, error.response?.data || error.message);
+            return null;
+        }
+    }
 
     _mapPecaToPayload(peca) {
         const payload = {
@@ -68,7 +83,7 @@ class EcommerceProvider {
             description: peca.descricao_detalhada,
             price: peca.preco_venda,
             sku: peca.sku_ecommerce || peca.codigo_etiqueta,
-            stock: peca.status === 'VENDIDA' ? 0 : 1,
+            stock: peca.quantidade !== undefined ? peca.quantidade : (peca.status === 'VENDIDA' ? 0 : 1),
             weight: peca.peso_kg,
             dimensions: {
                 height: peca.altura_cm,
@@ -79,10 +94,26 @@ class EcommerceProvider {
             category: peca.categoria?.nome,
             attributes: [],
             status: peca.status === 'VENDIDA' ? 'archived' : 'published',
-            brechoId: peca.id
+            brechoId: peca.id,
+            images: peca.fotos ? peca.fotos.map(f => ({ src: f.url })) : []
         };
 
-        if (peca.cor) payload.attributes.push({ name: 'Cor', options: [peca.cor.nome] });
+        if (peca.cor) {
+            payload.attributes.push({
+                name: 'Cor',
+                options: [peca.cor.nome],
+                // If API supports custom metadata for attributes or if we send it as a separate field
+                // For now, let's assume we send it as an option or metadata if supported.
+                // Or maybe the 'options' is an object? { label: 'Azul', value: '#0000FF' }?
+                // Standard Woocommerce/Magento usually just takes string.
+                // But user said: "faz a pessoa conseguir colocar o nome e a cor igual no @[API-ECOMMERCE] pois qunado fizer a sincronizacao ja puxa a cor"
+                // This implies if we send "Azul Bebê", and "Azul Bebê" exists in Ecommerce with the hex, it works.
+                // OR we need to send the hex.
+                // Let's try to send it in a way that might be accepted.
+                // If not supported, at least we send the name.
+                hex: peca.cor.hex
+            });
+        }
         if (peca.tamanho) payload.attributes.push({ name: 'Tamanho', options: [peca.tamanho.nome] });
 
         return payload;

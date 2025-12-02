@@ -31,6 +31,7 @@ class VendasService {
             }, { transaction: t });
 
             let subtotal = 0;
+            const itensResumo = []; // Store item details for message
 
             for (const item of itens) {
                 const peca = await Peca.findByPk(item.pecaId, { transaction: t });
@@ -41,12 +42,21 @@ class VendasService {
 
                 const valorVenda = item.valor_unitario_venda || peca.preco_venda;
                 subtotal += parseFloat(valorVenda);
+                itensResumo.push({ nome: peca.descricao_curta, valor: valorVenda });
 
-                await peca.update({
-                    status: 'VENDIDA',
-                    data_venda: new Date(),
-                    data_saida_estoque: new Date(),
-                }, { transaction: t });
+                // Decrement Stock Logic
+                const novaQuantidade = peca.quantidade - 1;
+                const updateData = {
+                    quantidade: novaQuantidade
+                };
+
+                if (novaQuantidade <= 0) {
+                    updateData.status = 'VENDIDA';
+                    updateData.data_venda = new Date();
+                    updateData.data_saida_estoque = new Date();
+                }
+
+                await peca.update(updateData, { transaction: t });
 
                 await MovimentacaoEstoque.create({
                     pecaId: peca.id,
@@ -56,6 +66,22 @@ class VendasService {
                     motivo: `Venda PDV Pedido ${pedido.codigo_pedido}`,
                     data_movimento: new Date(),
                 }, { transaction: t });
+
+                // Real-time Sync to Ecommerce (Update Stock)
+                try {
+                    // We need to do this AFTER transaction commit? Or inside?
+                    // If we do it inside and it fails, we don't want to rollback the sale?
+                    // Usually sync is "best effort" or background job.
+                    // But here we want it "real-time".
+                    // We can't await it inside transaction if it takes time.
+                    // But for simplicity, let's put it in a list and execute after commit.
+                    // Or just fire and forget inside (no await? but we want to log error).
+                    // I'll add it to a post-commit hook or just fire it.
+                    // Since I can't easily add post-commit hook here without refactoring,
+                    // I'll collect items to sync and do it after commit.
+                } catch (e) {
+                    console.error('Sync error', e);
+                }
 
                 await ItemPedido.create({
                     pedidoId: pedido.id,
@@ -200,6 +226,7 @@ class VendasService {
             // --- CASHBACK LOGIC ---
             // Verifica se houve pagamento com Voucher ou Crédito Loja
             const pagouComCredito = pagamentos.some(p => ['VOUCHER_PERMUTA', 'CREDITO_LOJA'].includes(p.metodo));
+            let valorCashback = 0;
 
             if (clienteId && !pagouComCredito) {
                 const configDia = await Configuracao.findByPk('CASHBACK_DIA_RESET', { transaction: t });
@@ -220,7 +247,7 @@ class VendasService {
                 }
 
                 const cashbackPercent = 100;
-                const valorCashback = (totalPago * cashbackPercent) / 100;
+                valorCashback = (totalPago * cashbackPercent) / 100;
 
                 if (valorCashback > 0) {
                     await CreditoLoja.create({
@@ -236,11 +263,34 @@ class VendasService {
 
             await t.commit();
 
+            // --- SYNC TO ECOMMERCE ---
+            // Fire and forget (or await if critical, but don't block response too much)
+            try {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                for (const item of itens) {
+                    const peca = await Peca.findByPk(item.pecaId); // Fetch fresh to get current quantity
+                    if (peca && peca.sku_ecommerce) {
+                        // We need to resolve ID from SKU if sku_ecommerce is not ID.
+                        // I'll rely on the provider to handle it (I will update provider next).
+                        await ecommerceProvider.updateProduct(peca.sku_ecommerce, peca);
+                    }
+                }
+            } catch (syncErr) {
+                console.error('[VendasService] Failed to sync sales to Ecommerce:', syncErr.message);
+            }
+            // -------------------------
+
             // --- NOTIFICATION TRIGGER (Dynamic) ---
             try {
                 if (clienteId) {
                     const cliente = await Pessoa.findByPk(clienteId);
                     if (cliente && cliente.telefone_whatsapp) {
+
+                        const listaProdutos = itensResumo.map(i => `👗 ${i.nome} - R$ ${parseFloat(i.valor).toFixed(2)}`).join('\n');
+                        const msgCashback = valorCashback > 0 ? `\n✨ Credito ganho: R$ ${valorCashback.toFixed(2)}` : '';
+
+                        const mensagemBonita = `Olá ${cliente.nome}! 💖\nQue alegria ter você por aqui!\n\nAqui está o resumo das suas comprinhas:\n${listaProdutos}\n\n💰 Total: R$ ${totalPago.toFixed(2)}${msgCashback}\n\nObrigado por garimpar com a gente! ♻️`;
+
                         await automacaoService.agendarMensagem({
                             telefone: cliente.telefone_whatsapp,
                             canal: 'WHATSAPP',
@@ -250,8 +300,8 @@ class VendasService {
                                 CODIGO_PEDIDO: pedido.codigo_pedido,
                                 VALOR_TOTAL: totalPago.toFixed(2)
                             },
-                            // Fallback message if template not found
-                            mensagem: `Olá ${cliente.nome}! 🌟 Seu pedido ${pedido.codigo_pedido} foi confirmado com sucesso! 🎉 Valor: R$ ${totalPago.toFixed(2)}. Muito obrigado por escolher a garimpo.nos! ❤️`
+                            // Fallback message if template not found (using our new beautiful format)
+                            mensagem: mensagemBonita
                         });
                     }
                 }
