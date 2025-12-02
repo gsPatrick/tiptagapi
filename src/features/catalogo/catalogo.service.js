@@ -50,27 +50,27 @@ class CatalogoService {
     }
 
     async getAllPecas(filters = {}) {
+        // Extract pagination/sorting params
+        const { limit, order, page, search, status, ...otherFilters } = filters;
         const where = {};
 
-        if (filters.status) {
-            where.status = filters.status;
+        if (status) {
+            where.status = status;
         }
 
-        if (filters.search) {
+        if (search) {
             where[Op.or] = [
-                { descricao_curta: { [Op.like]: `%${filters.search}%` } },
-                { codigo_etiqueta: { [Op.like]: `%${filters.search}%` } }
+                { descricao_curta: { [Op.like]: `%${search}%` } },
+                { codigo_etiqueta: { [Op.like]: `%${search}%` } }
             ];
         }
 
         // Allow other exact filters if passed
-        Object.keys(filters).forEach(key => {
-            if (key !== 'search' && key !== 'status') {
-                where[key] = filters[key];
-            }
+        Object.keys(otherFilters).forEach(key => {
+            where[key] = otherFilters[key];
         });
 
-        return await Peca.findAll({
+        const queryOptions = {
             where,
             include: [
                 { model: FotoPeca, as: 'fotos' },
@@ -79,7 +79,22 @@ class CatalogoService {
                 { model: Marca, as: 'marca' },
                 { model: Categoria, as: 'categoria' },
             ],
-        });
+        };
+
+        if (limit) queryOptions.limit = parseInt(limit);
+        if (order) {
+            // Handle "field:direction" format or just "desc" (assuming createdAt)
+            if (order.includes(':')) {
+                const [field, dir] = order.split(':');
+                queryOptions.order = [[field, dir.toUpperCase()]];
+            } else {
+                queryOptions.order = [['createdAt', order.toUpperCase()]];
+            }
+        } else {
+            queryOptions.order = [['createdAt', 'DESC']]; // Default
+        }
+
+        return await Peca.findAll(queryOptions);
     }
 
     async getPecaById(id) {
