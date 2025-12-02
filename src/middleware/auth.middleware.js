@@ -2,6 +2,14 @@ const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
+    const integrationSecret = req.headers['x-integration-secret'];
+
+    // Bypass for Integration
+    if (integrationSecret && integrationSecret === process.env.INTEGRATION_SECRET) {
+        req.userId = 'integration-system';
+        req.userRole = 'admin'; // Grant admin access for integration
+        return next();
+    }
 
     if (!authHeader) {
         return res.status(401).json({ error: 'Token not provided' });
