@@ -25,6 +25,16 @@ class CatalogoService {
             throw new Error('Fornecedor é obrigatório para consignação');
         }
 
+        // Idempotency Check: If sku_ecommerce is provided, check if it already exists
+        if (pecaData.sku_ecommerce) {
+            const existingPeca = await Peca.findOne({ where: { sku_ecommerce: pecaData.sku_ecommerce } });
+            if (existingPeca) {
+                console.log(`[CatalogoService] Peca with sku_ecommerce ${pecaData.sku_ecommerce} already exists. Returning existing.`);
+                // Optionally update it? For now just return to stop duplication loop.
+                return this.getPecaById(existingPeca.id);
+            }
+        }
+
         const peca = await Peca.create(pecaData);
 
         // Log Stock Entry

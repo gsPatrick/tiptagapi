@@ -44,7 +44,28 @@ class GenericCadastroController {
             const { entidade } = req.params;
             console.log(`[GenericCadastro] GetAll ${entidade} params:`, req.query);
             const model = this._getModel(entidade);
-            const items = await model.findAll({ where: req.query });
+
+            const where = { ...req.query };
+
+            // Case-insensitive search for 'nome'
+            if (where.nome) {
+                const { Sequelize } = require('../../models');
+                const nomeValue = where.nome;
+                delete where.nome;
+
+                const items = await model.findAll({
+                    where: {
+                        ...where,
+                        nome: Sequelize.where(
+                            Sequelize.fn('lower', Sequelize.col('nome')),
+                            Sequelize.fn('lower', nomeValue)
+                        )
+                    }
+                });
+                return res.json(items);
+            }
+
+            const items = await model.findAll({ where });
             return res.json(items);
         } catch (err) {
             return res.status(400).json({ error: err.message });
