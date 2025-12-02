@@ -1,5 +1,6 @@
 const { ContaCorrentePessoa, ContaPagarReceber, Pessoa, CreditoLoja, Repasse, Pedido, PagamentoPedido, FormaPagamento, TipoDeReceitaDespesa } = require('../../models');
 const { Op } = require('sequelize');
+const { startOfDay, endOfDay } = require('date-fns');
 
 class FinanceiroService {
     async getExtrato(pessoaId) {
@@ -108,7 +109,9 @@ class FinanceiroService {
     async getDRE(inicio, fim) {
         const whereDate = {};
         if (inicio && fim) {
-            whereDate[Op.between] = [new Date(inicio), new Date(fim)];
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereDate[Op.between] = [startDate, endDate];
         }
 
         // Receita: Vendas (PAGO, SEPARACAO, ENVIADO, ENTREGUE)
@@ -199,7 +202,9 @@ class FinanceiroService {
     async getRecebiveis(inicio, fim) {
         const whereDate = {};
         if (inicio && fim) {
-            whereDate[Op.between] = [new Date(inicio), new Date(fim)];
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereDate[Op.between] = [startDate, endDate];
         }
 
         const pagamentos = await PagamentoPedido.findAll({
@@ -291,7 +296,9 @@ class FinanceiroService {
         const whereClause = {};
 
         if (inicio && fim) {
-            whereClause.data_vencimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_vencimento = { [Op.between]: [startDate, endDate] };
         }
 
         if (tipo && tipo !== 'todos') {
@@ -336,7 +343,9 @@ class FinanceiroService {
         const whereClause = {};
 
         if (inicio && fim) {
-            whereClause.data_abertura = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_abertura = { [Op.between]: [startDate, endDate] };
         }
 
         const caixas = await CaixaDiario.findAll({
@@ -363,7 +372,9 @@ class FinanceiroService {
         const whereClause = { pessoaId };
 
         if (inicio && fim) {
-            whereClause.data_movimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_movimento = { [Op.between]: [startDate, endDate] };
         }
 
         const movs = await ContaCorrentePessoa.findAll({
@@ -439,8 +450,8 @@ class FinanceiroService {
         const { PagamentoPedido, ContaPagarReceber, Pedido } = require('../../models');
         const moment = require('moment');
 
-        const startCurrent = moment(inicio).startOf('day');
-        const endCurrent = moment(fim).endOf('day');
+        const startCurrent = moment(startOfDay(new Date(inicio)));
+        const endCurrent = moment(endOfDay(new Date(fim)));
 
         let startPrevious, endPrevious;
         if (compareMode === 'ano') {

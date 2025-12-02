@@ -310,11 +310,14 @@ class VendasService {
     }
 
     async getItensVendidos(search) {
-        if (!search) return [];
+        const wherePeca = { status: 'VENDIDA' };
 
-        // Search Peca by code/name or Client by name
-        // This is a bit complex because we need to join ItemPedido -> Pedido -> Pessoa
-        // and ItemPedido -> Peca
+        if (search) {
+            wherePeca[Op.or] = [
+                { codigo_etiqueta: { [Op.like]: `%${search}%` } },
+                { descricao_curta: { [Op.like]: `%${search}%` } }
+            ];
+        }
 
         return await ItemPedido.findAll({
             include: [
@@ -326,16 +329,10 @@ class VendasService {
                 {
                     model: Peca,
                     as: 'peca',
-                    where: {
-                        [Op.or]: [
-                            { codigo_etiqueta: { [Op.like]: `%${search}%` } },
-                            { descricao_curta: { [Op.like]: `%${search}%` } }
-                        ],
-                        status: 'VENDIDA' // Only sold items
-                    }
+                    where: wherePeca
                 }
             ],
-            limit: 20,
+            limit: 50,
             order: [['createdAt', 'DESC']]
         });
     }

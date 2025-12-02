@@ -1,5 +1,6 @@
 const { Pedido, ItemPedido, Peca, Categoria, Marca, User, Sequelize, Pessoa, Tamanho, Cor, PagamentoPedido } = require('../../models');
 const { Op } = require('sequelize');
+const { startOfDay, endOfDay } = require('date-fns');
 
 class RelatoriosService {
     async getResumo() {
@@ -54,7 +55,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const vendas = await ItemPedido.findAll({
@@ -101,7 +104,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const vendas = await ItemPedido.findAll({
@@ -149,7 +154,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const performance = await Pedido.findAll({
@@ -203,7 +210,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const vendas = await ItemPedido.findAll({
@@ -261,7 +270,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const itens = await ItemPedido.findAll({
@@ -458,7 +469,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const clientes = await Pedido.findAll({
@@ -548,7 +561,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const wherePeca = {};
@@ -618,7 +633,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const wherePeca = {};
@@ -674,7 +691,9 @@ class RelatoriosService {
     async getVendasRepasse(inicio, fim, fornecedorId) {
         const whereBase = {};
         if (inicio && fim) {
-            whereBase.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereBase.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const wherePeca = {};
@@ -828,7 +847,9 @@ class RelatoriosService {
         };
 
         if (inicio && fim) {
-            whereClause.data_pedido = { [Op.between]: [new Date(inicio), new Date(fim)] };
+            const startDate = startOfDay(new Date(inicio));
+            const endDate = endOfDay(new Date(fim));
+            whereClause.data_pedido = { [Op.between]: [startDate, endDate] };
         }
 
         const wherePeca = {};
@@ -893,7 +914,7 @@ class RelatoriosService {
         };
 
         if (filters.dataEntrada) {
-            whereClause.data_entrada = { [Op.gte]: new Date(filters.dataEntrada) };
+            whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.dataEntrada)) };
         }
 
         const pecas = await Peca.findAll({
