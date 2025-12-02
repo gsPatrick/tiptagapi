@@ -219,7 +219,7 @@ class VendasService {
                     validade = addMonths(validade, 1);
                 }
 
-                const cashbackPercent = 10;
+                const cashbackPercent = 100;
                 const valorCashback = (totalPago * cashbackPercent) / 100;
 
                 if (valorCashback > 0) {
