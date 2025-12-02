@@ -3,8 +3,12 @@ const app = require('./src/app');
 const { sequelize } = require('./src/models');
 const cronService = require('./src/jobs/cron');
 const queueWorker = require('./src/jobs/queue.worker');
+const syncJob = require('./src/jobs/sync.job');
 
 const PORT = process.env.PORT || 3000;
+
+// Start Cron Jobs
+syncJob();
 
 async function startServer() {
     try {
