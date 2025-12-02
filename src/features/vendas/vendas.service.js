@@ -79,22 +79,28 @@ class VendasService {
                 }
 
                 if (peca.tipo_aquisicao === 'PERMUTA' && peca.fornecedorId) {
-                    const valorCredito = parseFloat(valorVenda) * 0.5; // 50% Split
+                    const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
 
-                    // Ciclo Mensal (Safra)
-                    // Vendas em Jan -> Validade Fev (Fim do mês)
-                    // Status: AGUARDANDO_LIBERACAO (Libera dia 01/Fev)
+                    // Regra: Default 50% se não houver específico no cadastro
+                    const comissaoPercent = fornecedor && fornecedor.comissao_padrao
+                        ? parseFloat(fornecedor.comissao_padrao)
+                        : 50;
 
-                    const nextMonth = addMonths(new Date(), 1);
-                    const validade = endOfMonth(nextMonth); // Last day of next month
+                    // Cálculo: (Valor Venda * Percentual) / 100
+                    const valorCredito = (parseFloat(valorVenda) * comissaoPercent) / 100;
 
-                    await CreditoLoja.create({
-                        clienteId: peca.fornecedorId,
-                        valor: valorCredito,
-                        data_validade: validade,
-                        status: 'AGUARDANDO_LIBERACAO', // Trava inicial
-                        codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
-                    }, { transaction: t });
+                    if (valorCredito > 0) {
+                        const nextMonth = addMonths(new Date(), 1);
+                        const validade = endOfMonth(nextMonth); // Last day of next month
+
+                        await CreditoLoja.create({
+                            clienteId: peca.fornecedorId,
+                            valor: valorCredito,
+                            data_validade: validade,
+                            status: 'ATIVO', // Disponibiliza imediato conforme regra de negócio ajustada
+                            codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
+                        }, { transaction: t });
+                    }
                 }
             }
 
@@ -170,13 +176,8 @@ class VendasService {
                 }
 
                 // --- RECORD FINANCIAL MOVEMENT ---
-                // Only for real payments (Money, Credit, Debit, Pix)
-                // Exclude 'CREDITO_LOJA' and 'VOUCHER_PERMUTA' as they are internal swaps, not cash flow?
-                // Actually, EntradasSaidas usually tracks Cash Flow.
-                // If I pay with Credit Card, it's an entry (future or present).
-                // If I pay with Store Credit, no new money enters.
                 if (!['CREDITO_LOJA', 'VOUCHER_PERMUTA'].includes(pag.metodo)) {
-                    const { MovimentacaoConta } = require('../../models'); // Lazy load to avoid circular dependency if any
+                    const { MovimentacaoConta } = require('../../models');
                     await MovimentacaoConta.create({
                         tipo_transacao: 'CREDITO',
                         valor: pag.valor,
@@ -196,7 +197,10 @@ class VendasService {
             }, { transaction: t });
 
             // --- CASHBACK LOGIC ---
-            if (clienteId) {
+            // Verifica se houve pagamento com Voucher ou Crédito Loja
+            const pagouComCredito = pagamentos.some(p => ['VOUCHER_PERMUTA', 'CREDITO_LOJA'].includes(p.metodo));
+
+            if (clienteId && !pagouComCredito) {
                 const configDia = await Configuracao.findByPk('CASHBACK_DIA_RESET', { transaction: t });
                 const configHora = await Configuracao.findByPk('CASHBACK_HORA_RESET', { transaction: t });
 
