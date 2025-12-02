@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DATE,
             allowNull: true,
         },
+        canal: {
+            type: DataTypes.ENUM('WHATSAPP', 'EMAIL'),
+            allowNull: false,
+            defaultValue: 'WHATSAPP',
+        },
         tipo: {
             type: DataTypes.ENUM('ALERTA_VENCIMENTO', 'PROMO', 'REPASSE', 'MATCH_PECA', 'POS_VENDA'),
             allowNull: false,
