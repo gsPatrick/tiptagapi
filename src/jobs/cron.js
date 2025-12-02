@@ -248,4 +248,6 @@ class CronService {
         }
     }
 
+}
+
 module.exports = new CronService();
