@@ -5,15 +5,16 @@ const { Op } = require('sequelize');
 
 const syncJob = () => {
     // Run every minute
-    cron.schedule('* * * * *', async () => {
-        console.log('[TiptagSyncJob] Starting bidirectional sync...');
-        try {
-            await pushToEcommerce();
-            await pullFromEcommerce();
-        } catch (error) {
-            console.error('[TiptagSyncJob] Error in sync job:', error.message);
-        }
-    });
+    // cron.schedule('* * * * *', async () => {
+    //     console.log('[TiptagSyncJob] Starting bidirectional sync...');
+    //     try {
+    //         await pushToEcommerce();
+    //         await pullFromEcommerce();
+    //     } catch (error) {
+    //         console.error('[TiptagSyncJob] Error in sync job:', error.message);
+    //     }
+    // });
+    console.log('[TiptagSyncJob] Scheduled sync disabled in favor of real-time sync.');
 };
 
 const pushToEcommerce = async () => {

@@ -56,7 +56,20 @@ class CatalogoService {
             await FotoPeca.bulkCreate(fotosData);
         }
 
-        return this.getPecaById(peca.id);
+        const finalPeca = await this.getPecaById(peca.id);
+
+        // Real-time Sync to Ecommerce
+        try {
+            const ecommerceProvider = require('../integration/ecommerce.provider');
+            const ecommerceProduct = await ecommerceProvider.createProduct(finalPeca);
+            if (ecommerceProduct && ecommerceProduct.sku) {
+                await finalPeca.update({ sku_ecommerce: ecommerceProduct.sku });
+            }
+        } catch (err) {
+            console.error('[CatalogoService] Failed to sync to Ecommerce:', err.message);
+        }
+
+        return finalPeca;
     }
 
     async getAllPecas(filters = {}) {
