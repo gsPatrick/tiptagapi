@@ -4,99 +4,101 @@ const { Op } = require('sequelize');
 class CatalogoService {
     async createPeca(data, userId) {
         console.log('[CatalogoService] Creating Peca:', data);
-        const { fotos, ...pecaData } = data;
+        const { fotos, ...basePecaData } = data;
+        const quantidade = parseInt(data.stock || data.quantidade || 1);
+        const createdItems = [];
 
-        // Auto-generate sequential ID and label code
+        // 1. Get last sequence ONCE to avoid race conditions in loop (simple approach)
         const lastPeca = await Peca.findOne({
-            order: [['id', 'DESC']], // Assuming id is sequential enough or use a separate counter
+            order: [['id', 'DESC']],
         });
-        // We can use a simpler approach: Count + 1000 or just use ID after creation if not strict.
-        // But prompt wants "TAG-10020".
-        // Let's try to get max of a specific field if it exists, or just use ID.
-        // We'll use a random or sequential logic.
-        // For robustness, let's just use a timestamp based or simple increment if we had a counter.
-        // We'll stick to the previous logic of finding last one.
+        let nextSeq = lastPeca ? (parseInt(lastPeca.codigo_etiqueta.split('-')[1]) || 1000) + 1 : 1001;
 
-        // Note: This is not race-condition safe without locking, but acceptable for prototype.
-        const nextSeq = lastPeca ? (parseInt(lastPeca.codigo_etiqueta.split('-')[1]) || 1000) + 1 : 1001;
-        pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
+        // 2. Loop for Batch Creation
+        for (let i = 0; i < quantidade; i++) {
+            const pecaData = { ...basePecaData }; // Clone for each iteration
 
-        if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && !pecaData.fornecedorId) {
-            throw new Error('Fornecedor é obrigatório para consignação');
-        }
+            // Generate Unique TAG
+            pecaData.codigo_etiqueta = `TAG-${nextSeq + i}`;
 
-        // Idempotency Check: If sku_ecommerce is provided, check if it already exists
-        if (pecaData.sku_ecommerce) {
-            const existingPeca = await Peca.findOne({ where: { sku_ecommerce: pecaData.sku_ecommerce } });
-            if (existingPeca) {
-                console.log(`[CatalogoService] Peca with sku_ecommerce ${pecaData.sku_ecommerce} already exists. Returning existing.`);
-                // Optionally update it? For now just return to stop duplication loop.
-                return this.getPecaById(existingPeca.id);
+            // Handle SKU for batch: if multiple, append suffix to avoid duplicates if SKU provided
+            if (quantidade > 1 && pecaData.sku_ecommerce) {
+                pecaData.sku_ecommerce = `${pecaData.sku_ecommerce}-${i + 1}`;
             }
-        }
 
-        // --- Calculation of Commission and Net Values ---
-        if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && pecaData.fornecedorId) {
-            const fornecedor = await Pessoa.findByPk(pecaData.fornecedorId);
-            const comissaoPercent = fornecedor ? (parseFloat(fornecedor.comissao_padrao) || 50) : 50;
+            if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && !pecaData.fornecedorId) {
+                throw new Error('Fornecedor é obrigatório para consignação');
+            }
 
-            // Commission is what the STORE keeps? Or what the SUPPLIER gets?
-            // In VendasService: valorCredito = valorVenda * comissaoPercent / 100.
-            // This implies comissaoPercent is the SUPPLIER'S share.
-            // So if comissao_padrao is 50, Supplier gets 50%.
-            // If comissao_padrao is 60, Supplier gets 60%.
+            // Idempotency Check (Only for single item creation)
+            if (quantidade === 1 && pecaData.sku_ecommerce) {
+                const existingPeca = await Peca.findOne({ where: { sku_ecommerce: pecaData.sku_ecommerce } });
+                if (existingPeca) {
+                    console.log(`[CatalogoService] Peca with sku_ecommerce ${pecaData.sku_ecommerce} already exists. Returning existing.`);
+                    return this.getPecaById(existingPeca.id);
+                }
+            }
 
-            const preco = parseFloat(pecaData.preco_venda || 0);
-            const valorFornecedor = (preco * comissaoPercent) / 100;
-            const valorLoja = preco - valorFornecedor;
+            // --- Calculation of Commission and Net Values ---
+            if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && pecaData.fornecedorId) {
+                const fornecedor = await Pessoa.findByPk(pecaData.fornecedorId);
+                const comissaoPercent = fornecedor ? (parseFloat(fornecedor.comissao_padrao) || 50) : 50;
 
-            pecaData.valor_liquido_fornecedor = valorFornecedor;
-            pecaData.valor_comissao_loja = valorLoja;
+                const preco = parseFloat(pecaData.preco_venda || 0);
+                const valorFornecedor = (preco * comissaoPercent) / 100;
+                const valorLoja = preco - valorFornecedor;
 
-        } else if (pecaData.tipo_aquisicao === 'COMPRA') {
-            const preco = parseFloat(pecaData.preco_venda || 0);
-            const custo = parseFloat(pecaData.preco_custo || 0);
+                pecaData.valor_liquido_fornecedor = valorFornecedor;
+                pecaData.valor_comissao_loja = valorLoja;
 
-            pecaData.valor_liquido_fornecedor = custo;
-            pecaData.valor_comissao_loja = preco - custo;
-        }
-        // ------------------------------------------------
+            } else if (pecaData.tipo_aquisicao === 'COMPRA') {
+                const preco = parseFloat(pecaData.preco_venda || 0);
+                const custo = parseFloat(pecaData.preco_custo || 0);
 
-        const peca = await Peca.create(pecaData);
+                pecaData.valor_liquido_fornecedor = custo;
+                pecaData.valor_comissao_loja = preco - custo;
+            }
+            // ------------------------------------------------
 
-        // Log Stock Entry
-        await MovimentacaoEstoque.create({
-            pecaId: peca.id,
-            userId: userId || null, // Might be null if not passed
-            tipo: 'ENTRADA',
-            quantidade: 1,
-            motivo: 'Cadastro Inicial',
-            data_movimento: new Date(),
-        });
+            const peca = await Peca.create(pecaData);
 
-        if (fotos && fotos.length > 0) {
-            const fotosData = fotos.map((url, index) => ({
+            // Log Stock Entry
+            await MovimentacaoEstoque.create({
                 pecaId: peca.id,
-                url,
-                ordem: index,
-            }));
-            await FotoPeca.bulkCreate(fotosData);
-        }
+                userId: userId || null,
+                tipo: 'ENTRADA',
+                quantidade: 1,
+                motivo: 'Cadastro Inicial',
+                data_movimento: new Date(),
+            });
 
-        const finalPeca = await this.getPecaById(peca.id);
-
-        // Real-time Sync to Ecommerce
-        try {
-            const ecommerceProvider = require('../integration/ecommerce.provider');
-            const ecommerceProduct = await ecommerceProvider.createProduct(finalPeca);
-            if (ecommerceProduct && ecommerceProduct.sku) {
-                await finalPeca.update({ sku_ecommerce: ecommerceProduct.sku });
+            if (fotos && fotos.length > 0) {
+                const fotosData = fotos.map((url, index) => ({
+                    pecaId: peca.id,
+                    url,
+                    ordem: index,
+                }));
+                await FotoPeca.bulkCreate(fotosData);
             }
-        } catch (err) {
-            console.error('[CatalogoService] Failed to sync to Ecommerce:', err.message);
+
+            const finalPeca = await this.getPecaById(peca.id);
+
+            // Real-time Sync to Ecommerce
+            try {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                const ecommerceProduct = await ecommerceProvider.createProduct(finalPeca);
+                if (ecommerceProduct && ecommerceProduct.sku) {
+                    await finalPeca.update({ sku_ecommerce: ecommerceProduct.sku });
+                }
+            } catch (err) {
+                console.error('[CatalogoService] Failed to sync to Ecommerce:', err.message);
+            }
+
+            createdItems.push(finalPeca);
         }
 
-        return finalPeca;
+        // Return single item if only 1 requested (backward compatibility), else array
+        return quantidade === 1 ? createdItems[0] : createdItems;
     }
 
     async getAllPecas(filters = {}) {
