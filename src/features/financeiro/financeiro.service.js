@@ -436,7 +436,7 @@ class FinanceiroService {
     }
 
     async getEntradasSaidas(inicio, fim, compareMode = 'mes') {
-        const { MovimentacaoConta } = require('../../models');
+        const { PagamentoPedido, ContaPagarReceber, Pedido } = require('../../models');
         const moment = require('moment');
 
         const startCurrent = moment(inicio).startOf('day');
@@ -452,22 +452,41 @@ class FinanceiroService {
         }
 
         const getTotals = async (start, end) => {
-            const movs = await MovimentacaoConta.findAll({
+            const dateRange = { [Op.between]: [start.toDate(), end.toDate()] };
+
+            // 1. Receitas de Vendas (PagamentoPedido)
+            // Consider payments created in the period
+            const receitasVendas = await PagamentoPedido.sum('valor', {
                 where: {
-                    data_movimento: { [Op.between]: [start.toDate(), end.toDate()] }
+                    createdAt: dateRange,
+                    // Exclude internal swaps if desired, but usually they count as 'revenue' in broad sense?
+                    // Let's exclude 'VOUCHER_PERMUTA' as it's not cash in.
+                    metodo: { [Op.ne]: 'VOUCHER_PERMUTA' }
                 }
-            });
+            }) || 0;
 
-            let receitas = 0;
-            let despesas = 0;
+            // 2. Receitas de Outras Fontes (ContaPagarReceber type RECEBER)
+            const receitasOutras = await ContaPagarReceber.sum('valor_pago', {
+                where: {
+                    tipo: 'RECEBER',
+                    status: 'PAGO',
+                    data_pagamento: dateRange
+                }
+            }) || 0;
 
-            movs.forEach(m => {
-                const valor = parseFloat(m.valor);
-                if (m.tipo_transacao === 'CREDITO') receitas += valor;
-                else despesas += valor;
-            });
+            // 3. Despesas (ContaPagarReceber type PAGAR)
+            const despesas = await ContaPagarReceber.sum('valor_pago', {
+                where: {
+                    tipo: 'PAGAR',
+                    status: 'PAGO',
+                    data_pagamento: dateRange
+                }
+            }) || 0;
 
-            return { receitas, despesas };
+            return {
+                receitas: receitasVendas + receitasOutras,
+                despesas: despesas
+            };
         };
 
         const current = await getTotals(startCurrent, endCurrent);

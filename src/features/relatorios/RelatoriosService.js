@@ -632,7 +632,7 @@ class RelatoriosService {
                     model: Peca,
                     as: 'peca',
                     where: wherePeca,
-                    include: [{ model: Pessoa, as: 'fornecedor', attributes: ['nome'] }]
+                    include: [{ model: Pessoa, as: 'fornecedor', attributes: ['nome', 'comissao_padrao'] }]
                 },
                 {
                     model: Pedido,
@@ -647,8 +647,15 @@ class RelatoriosService {
         return itens.map(item => {
             const p = item.peca;
             const venda = parseFloat(item.valor_unitario_final || 0);
-            const custo = parseFloat(p.valor_liquido_fornecedor || 0);
-            const comissao = custo; // Assuming commission is the supplier cost (payout)
+            let custo = parseFloat(p.valor_liquido_fornecedor || 0);
+
+            // Fallback: If stored cost is 0, calculate based on supplier default commission
+            if (custo === 0 && p.fornecedor) {
+                const comissaoPadrao = parseFloat(p.fornecedor.comissao_padrao || 50);
+                custo = (venda * comissaoPadrao) / 100;
+            }
+
+            const comissao = custo; // Supplier Payout
             const pct = venda > 0 ? (comissao / venda) * 100 : 0;
 
             return {
@@ -656,7 +663,7 @@ class RelatoriosService {
                 id: item.pedido.id,
                 vendedor: p.fornecedor ? p.fornecedor.nome : 'LOJA PRÓPRIA',
                 venda,
-                base: venda, // Base calculation might differ, using sales price for now
+                base: venda,
                 desc: parseFloat(item.desconto || 0),
                 outros: 0,
                 comissao,
