@@ -83,8 +83,8 @@ class CatalogoService {
 
         if (search) {
             where[Op.or] = [
-                { descricao_curta: { [Op.like]: `%${search}%` } },
-                { codigo_etiqueta: { [Op.like]: `%${search}%` } }
+                { descricao_curta: { [Op.iLike]: `%${search}%` } },
+                { codigo_etiqueta: { [Op.iLike]: `%${search}%` } }
             ];
         }
 
