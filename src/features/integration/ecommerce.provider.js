@@ -77,6 +77,46 @@ class EcommerceProvider {
         }
     }
 
+    async syncCategory(categoria) {
+        if (!this.enabled) return null;
+        try {
+            console.log(`[EcommerceProvider] Syncing category ${categoria.nome}...`);
+            // Check if exists by name (or slug if we had it, but name is unique enough for now)
+            // Ideally we should store ecommerceId in Categoria model, but for now let's search by name
+            const searchRes = await axios.get(`${this.baseUrl}/categories`, {
+                params: { name: categoria.nome },
+                headers: { 'x-integration-secret': this.secret }
+            });
+
+            const payload = {
+                name: categoria.nome,
+                image: categoria.foto ? (categoria.foto.startsWith('http') ? categoria.foto : `${process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '')}${categoria.foto}`) : null,
+                isActive: true
+            };
+
+            if (searchRes.data && searchRes.data.length > 0) {
+                const existing = searchRes.data.find(c => c.name.toLowerCase() === categoria.nome.toLowerCase());
+                if (existing) {
+                    console.log(`[EcommerceProvider] Category exists (ID: ${existing.id}). Updating...`);
+                    await axios.put(`${this.baseUrl}/categories/${existing.id}`, payload, {
+                        headers: { 'x-integration-secret': this.secret }
+                    });
+                    return existing.id;
+                }
+            }
+
+            console.log(`[EcommerceProvider] Creating category...`);
+            const createRes = await axios.post(`${this.baseUrl}/categories`, payload, {
+                headers: { 'x-integration-secret': this.secret }
+            });
+            return createRes.data.id;
+
+        } catch (error) {
+            console.error(`[EcommerceProvider] Error syncing category:`, error.response?.data || error.message);
+            return null;
+        }
+    }
+
     _mapPecaToPayload(peca) {
         const payload = {
             name: peca.descricao_curta,
@@ -95,7 +135,9 @@ class EcommerceProvider {
             attributes: [],
             status: peca.status === 'VENDIDA' ? 'archived' : 'published',
             brechoId: peca.id,
-            images: peca.fotos ? peca.fotos.map(f => ({ src: f.url })) : []
+            images: peca.fotos ? peca.fotos.map(f => ({
+                src: f.url.startsWith('http') ? f.url : `${process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '')}${f.url}`
+            })) : []
         };
 
         if (peca.cor) {

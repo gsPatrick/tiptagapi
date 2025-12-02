@@ -78,6 +78,13 @@ class GenericCadastroController {
             console.log(`[GenericCadastro] Create ${entidade} body:`, req.body);
             const model = this._getModel(entidade);
             const item = await model.create(req.body);
+
+            // Sync Category if needed
+            if (entidade === 'categorias') {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                ecommerceProvider.syncCategory(item).catch(console.error);
+            }
+
             return res.status(201).json(item);
         } catch (err) {
             return res.status(400).json({ error: err.message });
@@ -95,6 +102,13 @@ class GenericCadastroController {
             }
 
             await item.update(req.body);
+
+            // Sync Category if needed
+            if (entidade === 'categorias') {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                ecommerceProvider.syncCategory(item).catch(console.error);
+            }
+
             return res.json(item);
         } catch (err) {
             return res.status(400).json({ error: err.message });
