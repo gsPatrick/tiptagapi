@@ -80,11 +80,12 @@ class FinanceiroService {
         // 4. Record Financial Movement (Cash Flow Out)
         const { MovimentacaoConta } = require('../../models');
         await MovimentacaoConta.create({
+            pessoaId,
             tipo_transacao: 'DEBITO',
             valor: valor,
             data_movimento: new Date(),
             descricao: `Repasse para fornecedor ${pessoaId}`,
-            categoria: 'REPASSE',
+            categoria: 'PAGAMENTO_REPASSE',
             origem_id: pessoaId, // Or Repasse ID if available
             origem_tipo: 'REPASSE'
         });
@@ -278,11 +279,12 @@ class FinanceiroService {
         if (status === 'PAGO') {
             const { MovimentacaoConta } = require('../../models');
             await MovimentacaoConta.create({
+                pessoaId,
                 tipo_transacao: tipo === 'RECEBER' ? 'CREDITO' : 'DEBITO',
                 valor: valor,
                 data_movimento: data_pagamento || new Date(),
                 descricao: descricao,
-                categoria: tipo === 'RECEBER' ? 'RECEITA' : 'DESPESA',
+                categoria: tipo === 'RECEBER' ? 'BONUS' : 'ESTORNO', // Mapping to closest enums or need to add RECEITA/DESPESA to enum
                 origem_id: transacao.id,
                 origem_tipo: 'CONTA_PAGAR_RECEBER'
             });

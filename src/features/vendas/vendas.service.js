@@ -176,14 +176,15 @@ class VendasService {
                 }
 
                 // --- RECORD FINANCIAL MOVEMENT ---
-                if (!['CREDITO_LOJA', 'VOUCHER_PERMUTA'].includes(pag.metodo)) {
+                if (clienteId && !['CREDITO_LOJA', 'VOUCHER_PERMUTA'].includes(pag.metodo)) {
                     const { MovimentacaoConta } = require('../../models');
                     await MovimentacaoConta.create({
+                        pessoaId: clienteId,
                         tipo_transacao: 'CREDITO',
                         valor: pag.valor,
                         data_movimento: new Date(),
                         descricao: `Venda PDV ${pedido.codigo_pedido} - ${pag.metodo}`,
-                        categoria: 'VENDA',
+                        categoria: 'VENDA_PECA',
                         origem_id: pedido.id,
                         origem_tipo: 'PEDIDO'
                     }, { transaction: t });
