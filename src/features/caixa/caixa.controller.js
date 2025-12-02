@@ -31,6 +31,15 @@ class CaixaController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async status(req, res) {
+        try {
+            const caixa = await caixaService.getCaixaAberto(req.userId);
+            return res.json(caixa || null); // Returns null if no open caixa
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new CaixaController();
