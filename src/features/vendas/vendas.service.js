@@ -4,7 +4,7 @@ const {
     MovimentacaoEstoque, CaixaDiario, Configuracao, sequelize, User
 } = require('../../models');
 const { Op } = require('sequelize');
-const { addMonths, addDays, setDate, setHours, setMinutes, setSeconds, isAfter } = require('date-fns');
+const { addMonths, addDays, setDate, setHours, setMinutes, setSeconds, isAfter, endOfMonth } = require('date-fns');
 const automacaoService = require('../automacao/automacao.service');
 
 class VendasService {
@@ -80,13 +80,19 @@ class VendasService {
 
                 if (peca.tipo_aquisicao === 'PERMUTA' && peca.fornecedorId) {
                     const valorCredito = parseFloat(valorVenda) * 0.5; // 50% Split
-                    const validade = addDays(new Date(), 30); // 30 Days Validity
+
+                    // Ciclo Mensal (Safra)
+                    // Vendas em Jan -> Validade Fev (Fim do mês)
+                    // Status: AGUARDANDO_LIBERACAO (Libera dia 01/Fev)
+
+                    const nextMonth = addMonths(new Date(), 1);
+                    const validade = endOfMonth(nextMonth); // Last day of next month
 
                     await CreditoLoja.create({
                         clienteId: peca.fornecedorId,
                         valor: valorCredito,
                         data_validade: validade,
-                        status: 'ATIVO',
+                        status: 'AGUARDANDO_LIBERACAO', // Trava inicial
                         codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
                     }, { transaction: t });
                 }
