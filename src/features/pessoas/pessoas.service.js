@@ -24,9 +24,21 @@ class PessoasService {
     }
 
     async getAll(filters = {}) {
+        const { search, ...otherFilters } = filters;
+        const where = { ...otherFilters };
+
+        if (search) {
+            where[Op.or] = [
+                { nome: { [Op.like]: `%${search}%` } },
+                { cpf_cnpj: { [Op.like]: `%${search}%` } },
+                { email: { [Op.like]: `%${search}%` } }
+            ];
+        }
+
         return await Pessoa.findAll({
-            where: filters,
+            where,
             include: ['endereco', 'contasBancarias', 'perfilComportamental'],
+            order: [['nome', 'ASC']]
         });
     }
 
