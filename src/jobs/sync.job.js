@@ -50,7 +50,7 @@ const pushToEcommerce = async () => {
                     description: peca.descricao_detalhada,
                     price: peca.preco_venda,
                     sku: peca.sku_ecommerce || peca.codigo_etiqueta,
-                    stock: 1,
+                    stock: peca.status === 'VENDIDA' ? 0 : 1, // If sold, stock is 0
                     weight: peca.peso_kg,
                     dimensions: {
                         height: peca.altura_cm,
@@ -60,7 +60,7 @@ const pushToEcommerce = async () => {
                     brand: peca.marca?.nome,
                     category: peca.categoria?.nome,
                     attributes: [],
-                    status: 'published',
+                    status: peca.status === 'VENDIDA' ? 'archived' : 'published', // Archive if sold
                     brechoId: peca.id // Tell Ecommerce this is from Brechó
                 };
 
