@@ -42,6 +42,7 @@ class GenericCadastroController {
     async getAll(req, res) {
         try {
             const { entidade } = req.params;
+            console.log(`[GenericCadastro] GetAll ${entidade} params:`, req.query);
             const model = this._getModel(entidade);
             const items = await model.findAll({ where: req.query });
             return res.json(items);
@@ -53,6 +54,7 @@ class GenericCadastroController {
     async create(req, res) {
         try {
             const { entidade } = req.params;
+            console.log(`[GenericCadastro] Create ${entidade} body:`, req.body);
             const model = this._getModel(entidade);
             const item = await model.create(req.body);
             return res.status(201).json(item);

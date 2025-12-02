@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 
 class CatalogoService {
     async createPeca(data, userId) {
+        console.log('[CatalogoService] Creating Peca:', data);
         const { fotos, ...pecaData } = data;
 
         // Auto-generate sequential ID and label code
