@@ -71,43 +71,48 @@ const pushToEcommerce = async () => {
                     // Check if exists first? Or just POST and handle duplicate?
                     // If we have sku_ecommerce, we assume it exists and try to UPDATE (PUT).
                     // But Ecommerce API might not support PUT /products by SKU.
-                    // We might need to find ID first?
                     // Or we assume Ecommerce supports PUT /products/sku/:sku?
                     // Let's assume we need to find it first or use a smart endpoint.
                     // For now, let's try POST. If 409, we assume it exists.
                     // Actually, if we have sku_ecommerce, we should try to update.
 
-                    if (peca.sku_ecommerce) {
-                        // Try to update. We need the ID.
-                        // Assuming we don't have the ID easily, we might need to search.
-                        // Or maybe we just POST and let Ecommerce handle upsert?
-                        // Let's try to search by SKU first.
-                        const searchRes = await axios.get(`${process.env.ECOMMERCE_API_URL}/products?search=${peca.sku_ecommerce}`, {
+                    // 1. Validate SKU
+                    if (!payload.sku) {
+                        console.warn(`[TiptagSyncJob] Skipping ${peca.id} (No SKU/Label)`);
+                        continue;
+                    }
+
+                    // 2. Check Existence in Ecommerce (Idempotency)
+                    let ecommerceId = null;
+
+                    try {
+                        const searchRes = await axios.get(`${process.env.ECOMMERCE_API_URL}/products?sku=${payload.sku}`, {
                             headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
                         });
 
                         if (searchRes.data && searchRes.data.length > 0) {
-                            const prodId = searchRes.data[0].id;
-                            await axios.put(`${process.env.ECOMMERCE_API_URL}/products/${prodId}`, payload, {
-                                headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
-                            });
-                            console.log(`[TiptagSyncJob] Updated ${peca.codigo_etiqueta} in Ecommerce.`);
-                        } else {
-                            // Not found, create
-                            const res = await axios.post(`${process.env.ECOMMERCE_API_URL}/products`, payload, {
-                                headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
-                            });
-                            // Update local sku_ecommerce if created
-                            if (res.data && res.data.sku) {
-                                await peca.update({ sku_ecommerce: res.data.sku });
+                            ecommerceId = searchRes.data[0].id;
+                            // Update local reference if missing
+                            if (!peca.sku_ecommerce) {
+                                await peca.update({ sku_ecommerce: payload.sku });
                             }
-                            console.log(`[TiptagSyncJob] Pushed ${peca.codigo_etiqueta} to Ecommerce.`);
                         }
+                    } catch (err) {
+                        // Ignore search error, proceed to create attempt
+                    }
+
+                    if (ecommerceId) {
+                        // UPDATE
+                        await axios.put(`${process.env.ECOMMERCE_API_URL}/products/${ecommerceId}`, payload, {
+                            headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
+                        });
+                        console.log(`[TiptagSyncJob] Updated ${peca.codigo_etiqueta} in Ecommerce (ID: ${ecommerceId}).`);
                     } else {
-                        // Create
+                        // CREATE
                         const res = await axios.post(`${process.env.ECOMMERCE_API_URL}/products`, payload, {
                             headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
                         });
+                        // Update local sku_ecommerce if created
                         if (res.data && res.data.sku) {
                             await peca.update({ sku_ecommerce: res.data.sku });
                         }
