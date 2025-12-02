@@ -69,31 +69,51 @@ const pushToEcommerce = async () => {
 
                 try {
                     // Check if exists first? Or just POST and handle duplicate?
-                    // Ecommerce POST /products handles creation.
-                    // If we want to update, we might need PUT /products/:id or similar.
-                    // Let's try to find by SKU first?
-                    // Ecommerce API might not expose a "find by SKU" easily for integration without search.
-                    // But we can try POST and see if it fails with "SKU exists".
-                    // Or we can use a special integration endpoint?
-                    // For now, let's try POST.
+                    // If we have sku_ecommerce, we assume it exists and try to UPDATE (PUT).
+                    // But Ecommerce API might not support PUT /products by SKU.
+                    // We might need to find ID first?
+                    // Or we assume Ecommerce supports PUT /products/sku/:sku?
+                    // Let's assume we need to find it first or use a smart endpoint.
+                    // For now, let's try POST. If 409, we assume it exists.
+                    // Actually, if we have sku_ecommerce, we should try to update.
 
-                    // We need to authenticate with Ecommerce.
-                    // Does Ecommerce accept 'x-integration-secret'?
-                    // I haven't implemented that in Ecommerce yet!
-                    // I only implemented it in Tiptag.
-                    // Ecommerce uses JWT.
-                    // I need to implement 'x-integration-secret' in Ecommerce middleware too!
-                    // Or use a dedicated user token.
-                    // The user prompt said "Adiciona tambem um CRON em ambas APIS".
-                    // I should probably add the integration secret auth to Ecommerce too for symmetry.
+                    if (peca.sku_ecommerce) {
+                        // Try to update. We need the ID.
+                        // Assuming we don't have the ID easily, we might need to search.
+                        // Or maybe we just POST and let Ecommerce handle upsert?
+                        // Let's try to search by SKU first.
+                        const searchRes = await axios.get(`${process.env.ECOMMERCE_API_URL}/products?search=${peca.sku_ecommerce}`, {
+                            headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
+                        });
 
-                    // Assuming I will add it:
-                    await axios.post(`${process.env.ECOMMERCE_API_URL}/products`, payload, {
-                        headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
-                    });
-                    console.log(`[TiptagSyncJob] Pushed ${peca.codigo_etiqueta} to Ecommerce.`);
+                        if (searchRes.data && searchRes.data.length > 0) {
+                            const prodId = searchRes.data[0].id;
+                            await axios.put(`${process.env.ECOMMERCE_API_URL}/products/${prodId}`, payload, {
+                                headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
+                            });
+                            console.log(`[TiptagSyncJob] Updated ${peca.codigo_etiqueta} in Ecommerce.`);
+                        } else {
+                            // Not found, create
+                            const res = await axios.post(`${process.env.ECOMMERCE_API_URL}/products`, payload, {
+                                headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
+                            });
+                            // Update local sku_ecommerce if created
+                            if (res.data && res.data.sku) {
+                                await peca.update({ sku_ecommerce: res.data.sku });
+                            }
+                            console.log(`[TiptagSyncJob] Pushed ${peca.codigo_etiqueta} to Ecommerce.`);
+                        }
+                    } else {
+                        // Create
+                        const res = await axios.post(`${process.env.ECOMMERCE_API_URL}/products`, payload, {
+                            headers: { 'x-integration-secret': process.env.INTEGRATION_SECRET }
+                        });
+                        if (res.data && res.data.sku) {
+                            await peca.update({ sku_ecommerce: res.data.sku });
+                        }
+                        console.log(`[TiptagSyncJob] Pushed ${peca.codigo_etiqueta} to Ecommerce.`);
+                    }
                 } catch (err) {
-                    // If 409 (Conflict) or similar, maybe update?
                     console.error(`[TiptagSyncJob] Failed to push ${peca.codigo_etiqueta}:`, err.response?.data || err.message);
                 }
             }
