@@ -76,6 +76,18 @@ class FinanceiroService {
             status: 'PAGO',
         });
 
+        // 4. Record Financial Movement (Cash Flow Out)
+        const { MovimentacaoConta } = require('../../models');
+        await MovimentacaoConta.create({
+            tipo_transacao: 'DEBITO',
+            valor: valor,
+            data_movimento: new Date(),
+            descricao: `Repasse para fornecedor ${pessoaId}`,
+            categoria: 'REPASSE',
+            origem_id: pessoaId, // Or Repasse ID if available
+            origem_tipo: 'REPASSE'
+        });
+
         return { message: 'Repasse realizado com sucesso' };
     }
 
@@ -256,6 +268,21 @@ class FinanceiroService {
             status,
             categoriaId
         });
+
+        // --- RECORD FINANCIAL MOVEMENT IF PAID ---
+        if (status === 'PAGO') {
+            const { MovimentacaoConta } = require('../../models');
+            await MovimentacaoConta.create({
+                tipo_transacao: tipo === 'RECEBER' ? 'CREDITO' : 'DEBITO',
+                valor: valor,
+                data_movimento: data_pagamento || new Date(),
+                descricao: descricao,
+                categoria: tipo === 'RECEBER' ? 'RECEITA' : 'DESPESA',
+                origem_id: transacao.id,
+                origem_tipo: 'CONTA_PAGAR_RECEBER'
+            });
+        }
+        // -----------------------------------------
 
         return transacao;
     }

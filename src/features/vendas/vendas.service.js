@@ -168,6 +168,26 @@ class VendasService {
                     const novoTotal = parseFloat(caixaAberto.total_entradas_dinheiro) + parseFloat(pag.valor);
                     await caixaAberto.update({ total_entradas_dinheiro: novoTotal }, { transaction: t });
                 }
+
+                // --- RECORD FINANCIAL MOVEMENT ---
+                // Only for real payments (Money, Credit, Debit, Pix)
+                // Exclude 'CREDITO_LOJA' and 'VOUCHER_PERMUTA' as they are internal swaps, not cash flow?
+                // Actually, EntradasSaidas usually tracks Cash Flow.
+                // If I pay with Credit Card, it's an entry (future or present).
+                // If I pay with Store Credit, no new money enters.
+                if (!['CREDITO_LOJA', 'VOUCHER_PERMUTA'].includes(pag.metodo)) {
+                    const { MovimentacaoConta } = require('../../models'); // Lazy load to avoid circular dependency if any
+                    await MovimentacaoConta.create({
+                        tipo_transacao: 'CREDITO',
+                        valor: pag.valor,
+                        data_movimento: new Date(),
+                        descricao: `Venda PDV ${pedido.codigo_pedido} - ${pag.metodo}`,
+                        categoria: 'VENDA',
+                        origem_id: pedido.id,
+                        origem_tipo: 'PEDIDO'
+                    }, { transaction: t });
+                }
+                // ---------------------------------
             }
 
             await pedido.update({
