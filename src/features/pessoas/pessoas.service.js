@@ -29,9 +29,9 @@ class PessoasService {
 
         if (search) {
             where[Op.or] = [
-                { nome: { [Op.like]: `%${search}%` } },
-                { cpf_cnpj: { [Op.like]: `%${search}%` } },
-                { email: { [Op.like]: `%${search}%` } }
+                { nome: { [Op.iLike]: `%${search}%` } },
+                { cpf_cnpj: { [Op.iLike]: `%${search}%` } },
+                { email: { [Op.iLike]: `%${search}%` } }
             ];
         }
 
