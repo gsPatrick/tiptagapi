@@ -113,7 +113,7 @@ class VendasService {
                         : 50;
 
                     // Cálculo: (Valor Venda * Percentual) / 100
-                    const valorCredito = (parseFloat(valorVenda) * comissaoPercent) / 100;
+                    const valorCredito = (parseFloat(valorVenda) * comissaoPercent) / 50;
 
                     if (valorCredito > 0) {
                         const nextMonth = addMonths(new Date(), 1);
