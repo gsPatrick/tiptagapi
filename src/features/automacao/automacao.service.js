@@ -63,7 +63,11 @@ class AutomacaoService {
             try {
                 if (msg.canal === 'WHATSAPP') {
                     if (!msg.telefone) throw new Error('Telefone missing for WhatsApp');
-                    await whatsappProvider.enviarTexto(msg.telefone, msg.mensagem);
+                    const response = await whatsappProvider.enviarTexto(msg.telefone, msg.mensagem);
+
+                    if (response && response.error) {
+                        throw new Error(`WhatsApp Error: ${response.error}`);
+                    }
                 } else if (msg.canal === 'EMAIL') {
                     if (!msg.email) throw new Error('Email missing for Email channel');
                     await emailProvider.enviarEmail(msg.email, msg.assunto || 'Aviso', msg.mensagem);

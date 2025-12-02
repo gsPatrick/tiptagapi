@@ -251,7 +251,7 @@ class VendasService {
                                 VALOR_TOTAL: totalPago.toFixed(2)
                             },
                             // Fallback message if template not found
-                            mensagem: `Olá ${cliente.nome}, seu pedido ${pedido.codigo_pedido} foi confirmado! Valor: R$ ${totalPago.toFixed(2)}.`
+                            mensagem: `Olá ${cliente.nome}! 🌟 Seu pedido ${pedido.codigo_pedido} foi confirmado com sucesso! 🎉 Valor: R$ ${totalPago.toFixed(2)}. Muito obrigado por escolher a garimpo.nos! ❤️`
                         });
                     }
                 }

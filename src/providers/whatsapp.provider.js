@@ -27,10 +27,16 @@ class WhatsappProvider {
                 headers['Client-Token'] = this.clientToken;
             }
 
-            const response = await axios.post(url, {
+            const payload = {
                 phone,
                 message: mensagem
-            }, { headers });
+            };
+
+            console.log(`[Z-API] Sending to ${phone}:`, JSON.stringify(payload, null, 2));
+
+            const response = await axios.post(url, payload, { headers });
+
+            console.log(`[Z-API] Response:`, JSON.stringify(response.data, null, 2));
 
             return response.data;
         } catch (err) {
