@@ -35,6 +35,33 @@ class CatalogoService {
             }
         }
 
+        // --- Calculation of Commission and Net Values ---
+        if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && pecaData.fornecedorId) {
+            const fornecedor = await Pessoa.findByPk(pecaData.fornecedorId);
+            const comissaoPercent = fornecedor ? (parseFloat(fornecedor.comissao_padrao) || 50) : 50;
+
+            // Commission is what the STORE keeps? Or what the SUPPLIER gets?
+            // In VendasService: valorCredito = valorVenda * comissaoPercent / 100.
+            // This implies comissaoPercent is the SUPPLIER'S share.
+            // So if comissao_padrao is 50, Supplier gets 50%.
+            // If comissao_padrao is 60, Supplier gets 60%.
+
+            const preco = parseFloat(pecaData.preco_venda || 0);
+            const valorFornecedor = (preco * comissaoPercent) / 100;
+            const valorLoja = preco - valorFornecedor;
+
+            pecaData.valor_liquido_fornecedor = valorFornecedor;
+            pecaData.valor_comissao_loja = valorLoja;
+
+        } else if (pecaData.tipo_aquisicao === 'COMPRA') {
+            const preco = parseFloat(pecaData.preco_venda || 0);
+            const custo = parseFloat(pecaData.preco_custo || 0);
+
+            pecaData.valor_liquido_fornecedor = custo;
+            pecaData.valor_comissao_loja = preco - custo;
+        }
+        // ------------------------------------------------
+
         const peca = await Peca.create(pecaData);
 
         // Log Stock Entry
