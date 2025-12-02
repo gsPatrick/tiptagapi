@@ -128,6 +128,12 @@ class CatalogoService {
         await peca.destroy();
         return { message: 'Peca deleted successfully' };
     }
+
+    async getAllMarcas() {
+        return await Marca.findAll({
+            order: [['nome', 'ASC']]
+        });
+    }
 }
 
 module.exports = new CatalogoService();

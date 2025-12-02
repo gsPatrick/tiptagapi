@@ -10,6 +10,7 @@ router.get('/pecas', catalogoController.getAllPecas);
 router.get('/pecas/:id', catalogoController.getPecaById);
 router.put('/pecas/:id', catalogoController.updatePeca);
 router.delete('/pecas/:id', catalogoController.deletePeca);
+router.get('/marcas', catalogoController.getAllMarcas);
 router.post('/etiquetas', catalogoController.generateEtiquetas);
 
 module.exports = router;

@@ -57,6 +57,15 @@ class CatalogoController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async getAllMarcas(req, res) {
+        try {
+            const marcas = await catalogoService.getAllMarcas();
+            return res.json(marcas);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new CatalogoController();
