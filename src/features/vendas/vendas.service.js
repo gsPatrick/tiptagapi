@@ -267,11 +267,20 @@ class VendasService {
             // Fire and forget (or await if critical, but don't block response too much)
             try {
                 const ecommerceProvider = require('../integration/ecommerce.provider');
+                const { Marca, Categoria, FotoPeca, Cor, Tamanho } = require('../../models');
+
                 for (const item of itens) {
-                    const peca = await Peca.findByPk(item.pecaId); // Fetch fresh to get current quantity
+                    const peca = await Peca.findByPk(item.pecaId, {
+                        include: [
+                            { model: Marca, as: 'marca' },
+                            { model: Categoria, as: 'categoria' },
+                            { model: FotoPeca, as: 'fotos' },
+                            { model: Cor, as: 'cor' },
+                            { model: Tamanho, as: 'tamanho' }
+                        ]
+                    });
+
                     if (peca && peca.sku_ecommerce) {
-                        // We need to resolve ID from SKU if sku_ecommerce is not ID.
-                        // I'll rely on the provider to handle it (I will update provider next).
                         await ecommerceProvider.updateProduct(peca.sku_ecommerce, peca);
                     }
                 }

@@ -118,12 +118,29 @@ class EcommerceProvider {
     }
 
     _mapPecaToPayload(peca) {
+        // Logic for Stock: 0 if sold/reserved/returned, otherwise quantity or 1
+        let stock = 1;
+        const zeroStockStatuses = ['VENDIDA', 'RESERVADA_SACOLINHA', 'DEVOLVIDA_FORNECEDOR'];
+
+        if (zeroStockStatuses.includes(peca.status)) {
+            stock = 0;
+        } else if (peca.quantidade !== undefined) {
+            stock = peca.quantidade;
+        }
+
+        // Logic for Images: Ensure absolute URL using TIPTAG_API_URL
+        const tiptagUrl = process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '');
+
+        const images = peca.fotos ? peca.fotos.map(f => ({
+            src: f.url.startsWith('http') ? f.url : `${tiptagUrl}${f.url}`
+        })) : [];
+
         const payload = {
             name: peca.descricao_curta,
             description: peca.descricao_detalhada,
             price: peca.preco_venda,
             sku: peca.sku_ecommerce || peca.codigo_etiqueta,
-            stock: peca.quantidade !== undefined ? peca.quantidade : (peca.status === 'VENDIDA' ? 0 : 1),
+            stock: stock,
             weight: peca.peso_kg,
             dimensions: {
                 height: peca.altura_cm,
@@ -135,24 +152,13 @@ class EcommerceProvider {
             attributes: [],
             status: peca.status === 'VENDIDA' ? 'archived' : 'published',
             brechoId: peca.id,
-            images: peca.fotos ? peca.fotos.map(f => ({
-                src: f.url.startsWith('http') ? f.url : `${process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '')}${f.url}`
-            })) : []
+            images: images
         };
 
         if (peca.cor) {
             payload.attributes.push({
                 name: 'Cor',
                 options: [peca.cor.nome],
-                // If API supports custom metadata for attributes or if we send it as a separate field
-                // For now, let's assume we send it as an option or metadata if supported.
-                // Or maybe the 'options' is an object? { label: 'Azul', value: '#0000FF' }?
-                // Standard Woocommerce/Magento usually just takes string.
-                // But user said: "faz a pessoa conseguir colocar o nome e a cor igual no @[API-ECOMMERCE] pois qunado fizer a sincronizacao ja puxa a cor"
-                // This implies if we send "Azul Bebê", and "Azul Bebê" exists in Ecommerce with the hex, it works.
-                // OR we need to send the hex.
-                // Let's try to send it in a way that might be accepted.
-                // If not supported, at least we send the name.
                 hex: peca.cor.hex
             });
         }
