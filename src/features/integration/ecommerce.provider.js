@@ -43,10 +43,27 @@ class EcommerceProvider {
         }
     }
 
-    async updateProduct(ecommerceId, peca) {
-        if (!this.enabled || !ecommerceId) return null;
+    async updateProduct(ecommerceIdOrSku, peca) {
+        if (!this.enabled || !ecommerceIdOrSku) return null;
 
         try {
+            let ecommerceId = ecommerceIdOrSku;
+
+            // If it looks like a SKU (string not purely numeric, or we just want to be safe), resolve it
+            // Assuming IDs are integers. If SKU is passed (e.g. "TAG-1001"), we need to find the ID.
+            if (isNaN(ecommerceIdOrSku)) {
+                console.log(`[EcommerceProvider] Resolving ID for SKU ${ecommerceIdOrSku}...`);
+                const searchRes = await axios.get(`${this.baseUrl}/products?sku=${ecommerceIdOrSku}`, {
+                    headers: { 'x-integration-secret': this.secret }
+                });
+                if (searchRes.data && searchRes.data.length > 0) {
+                    ecommerceId = searchRes.data[0].id;
+                } else {
+                    console.warn(`[EcommerceProvider] Product with SKU ${ecommerceIdOrSku} not found for update.`);
+                    return null;
+                }
+            }
+
             const payload = this._mapPecaToPayload(peca);
             console.log(`[EcommerceProvider] Updating product ${ecommerceId} in Ecommerce...`);
 
@@ -61,10 +78,26 @@ class EcommerceProvider {
             return null;
         }
     }
-    async deleteProduct(ecommerceId) {
-        if (!this.enabled || !ecommerceId) return null;
+
+    async deleteProduct(ecommerceIdOrSku) {
+        if (!this.enabled || !ecommerceIdOrSku) return null;
 
         try {
+            let ecommerceId = ecommerceIdOrSku;
+
+            if (isNaN(ecommerceIdOrSku)) {
+                console.log(`[EcommerceProvider] Resolving ID for SKU ${ecommerceIdOrSku} to delete...`);
+                const searchRes = await axios.get(`${this.baseUrl}/products?sku=${ecommerceIdOrSku}`, {
+                    headers: { 'x-integration-secret': this.secret }
+                });
+                if (searchRes.data && searchRes.data.length > 0) {
+                    ecommerceId = searchRes.data[0].id;
+                } else {
+                    console.warn(`[EcommerceProvider] Product with SKU ${ecommerceIdOrSku} not found for delete.`);
+                    return null;
+                }
+            }
+
             console.log(`[EcommerceProvider] Deleting product ${ecommerceId} in Ecommerce...`);
             await axios.delete(`${this.baseUrl}/products/${ecommerceId}`, {
                 headers: { 'x-integration-secret': this.secret }
