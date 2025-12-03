@@ -15,14 +15,14 @@ class EcommerceProvider {
             console.log(`[EcommerceProvider] Pushing ${peca.codigo_etiqueta} to Ecommerce...`);
 
             // Check existence first (Idempotency)
-            // We can use the same logic as sync job: check by SKU
             if (payload.sku) {
                 try {
                     const searchRes = await axios.get(`${this.baseUrl}/products?sku=${payload.sku}`, {
                         headers: { 'x-integration-secret': this.secret }
                     });
-                    if (searchRes.data && searchRes.data.length > 0) {
-                        const existingId = searchRes.data[0].id;
+                    const products = searchRes.data.data || searchRes.data;
+                    if (Array.isArray(products) && products.length > 0) {
+                        const existingId = products[0].id;
                         console.log(`[EcommerceProvider] Product ${payload.sku} already exists (ID: ${existingId}). Updating...`);
                         return await this.updateProduct(existingId, peca);
                     }
@@ -50,14 +50,15 @@ class EcommerceProvider {
             let ecommerceId = ecommerceIdOrSku;
 
             // If it looks like a SKU (string not purely numeric, or we just want to be safe), resolve it
-            // Assuming IDs are integers. If SKU is passed (e.g. "TAG-1001"), we need to find the ID.
             if (isNaN(ecommerceIdOrSku)) {
                 console.log(`[EcommerceProvider] Resolving ID for SKU ${ecommerceIdOrSku}...`);
                 const searchRes = await axios.get(`${this.baseUrl}/products?sku=${ecommerceIdOrSku}`, {
                     headers: { 'x-integration-secret': this.secret }
                 });
-                if (searchRes.data && searchRes.data.length > 0) {
-                    ecommerceId = searchRes.data[0].id;
+                const products = searchRes.data.data || searchRes.data;
+
+                if (Array.isArray(products) && products.length > 0) {
+                    ecommerceId = products[0].id;
                 } else {
                     console.warn(`[EcommerceProvider] Product with SKU ${ecommerceIdOrSku} not found for update.`);
                     return null;
@@ -90,8 +91,10 @@ class EcommerceProvider {
                 const searchRes = await axios.get(`${this.baseUrl}/products?sku=${ecommerceIdOrSku}`, {
                     headers: { 'x-integration-secret': this.secret }
                 });
-                if (searchRes.data && searchRes.data.length > 0) {
-                    ecommerceId = searchRes.data[0].id;
+                const products = searchRes.data.data || searchRes.data;
+
+                if (Array.isArray(products) && products.length > 0) {
+                    ecommerceId = products[0].id;
                 } else {
                     console.warn(`[EcommerceProvider] Product with SKU ${ecommerceIdOrSku} not found for delete.`);
                     return null;
