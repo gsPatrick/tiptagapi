@@ -11,9 +11,14 @@ class OutboundService {
 
         try {
             // Determine stock based on status
-            // If DISPONIVEL -> 1, else 0
-            const isAvailable = peca.status === 'DISPONIVEL';
-            const stock = isAvailable ? 1 : 0;
+            // If DISPONIVEL, NOVO, NOVA, A_VENDA -> quantity or 1, else 0
+            const availableStatuses = ['DISPONIVEL', 'NOVO', 'NOVA', 'A_VENDA'];
+            const isAvailable = availableStatuses.includes(peca.status);
+
+            let stock = 0;
+            if (isAvailable) {
+                stock = (peca.quantidade !== undefined && peca.quantidade !== null) ? parseInt(peca.quantidade) : 1;
+            }
 
             const payload = {
                 sku: peca.sku_ecommerce || peca.codigo_etiqueta,
