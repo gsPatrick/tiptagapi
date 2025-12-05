@@ -123,7 +123,8 @@ class VendasService {
                             clienteId: peca.fornecedorId,
                             valor: valorCredito,
                             data_validade: validade,
-                            status: 'ATIVO', // Disponibiliza imediato conforme regra de negócio ajustada
+                            data_validade: validade,
+                            status: 'AGUARDANDO_LIBERACAO', // Acumula para o próximo mês
                             codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
                         }, { transaction: t });
                     }
@@ -300,6 +301,7 @@ class VendasService {
 
                         const mensagemBonita = `Olá ${cliente.nome}! 💖\nQue alegria ter você por aqui!\n\nAqui está o resumo das suas comprinhas:\n${listaProdutos}\n\n💰 Total: R$ ${totalPago.toFixed(2)}${msgCashback}\n\nObrigado por garimpar com a gente! ♻️`;
 
+                        /*
                         await automacaoService.agendarMensagem({
                             telefone: cliente.telefone_whatsapp,
                             canal: 'WHATSAPP',
@@ -310,8 +312,10 @@ class VendasService {
                                 VALOR_TOTAL: totalPago.toFixed(2)
                             },
                             // Fallback message if template not found (using our new beautiful format)
-                            mensagem: mensagemBonita
+                            // mensagem: mensagemBonita
                         });
+                        */
+                        console.log('Notificação de pós-venda desativada conforme solicitação.');
                     }
                 }
             } catch (msgErr) {

@@ -126,21 +126,31 @@ class CronService {
             // If we set validity to end of month, checkCreditosVencidos (daily) will catch them on day 1 (since valid < today).
             // But let's be explicit here to ensure the "Virada" happens atomically.
 
+            // 1. Expire ALL 'ATIVO' credits from previous month (Reset Balance)
             const [expiredCount] = await CreditoLoja.update(
                 { status: 'EXPIRADO' },
                 {
                     where: {
                         status: 'ATIVO',
-                        data_validade: { [Op.lt]: now } // Should match if validity was end of prev month
+                        // No date check needed if we want to reset ALL active credits on the 1st
+                        // But to be safe, we can check if created before today?
+                        // The rule is: "todo o credito que a pessoa tinha no mes vai ser resetado"
+                        // So we expire everything that is currently ATIVO.
                     },
                     transaction: t
                 }
             );
-            console.log(`[MonthlyCycle] Expired ${expiredCount} old credits.`);
+            console.log(`[MonthlyCycle] Expired ${expiredCount} old credits (Monthly Reset).`);
 
             // 2. Activate 'AGUARDANDO_LIBERACAO' credits
+            // And set validity to end of THIS month.
+            const endOfCurrentMonth = endOfMonth(now);
+
             const [activatedCount] = await CreditoLoja.update(
-                { status: 'ATIVO' },
+                {
+                    status: 'ATIVO',
+                    data_validade: endOfCurrentMonth
+                },
                 {
                     where: { status: 'AGUARDANDO_LIBERACAO' },
                     transaction: t

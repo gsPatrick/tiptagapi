@@ -32,6 +32,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: true,
         },
+        sync_ecommerce: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true,
+        },
         descricao_curta: {
             type: DataTypes.STRING(70),
             allowNull: false,
