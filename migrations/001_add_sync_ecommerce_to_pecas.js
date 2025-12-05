@@ -7,7 +7,7 @@ async function migrate() {
         console.log('Database connected for migration.');
 
         const queryInterface = sequelize.getQueryInterface();
-        const tableName = 'Pecas';
+        const tableName = 'pecas';
         const columnName = 'sync_ecommerce';
 
         // Check if column exists
