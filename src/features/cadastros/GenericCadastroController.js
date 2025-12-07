@@ -142,8 +142,8 @@ class GenericCadastroController {
         try {
             const { entidade, id } = req.params;
 
-            // Support sync for categories and brands
-            if (entidade !== 'categorias' && entidade !== 'marcas') {
+            // Support sync for categories, brands, sizes, and colors
+            if (!['categorias', 'marcas', 'tamanhos', 'cores'].includes(entidade)) {
                 return res.status(400).json({ error: 'Sincronização não suportada para esta entidade' });
             }
 
@@ -160,6 +160,10 @@ class GenericCadastroController {
                 result = await ecommerceProvider.syncCategory(item);
             } else if (entidade === 'marcas') {
                 result = await ecommerceProvider.syncBrand(item);
+            } else if (entidade === 'tamanhos') {
+                result = await ecommerceProvider.syncSize(item);
+            } else if (entidade === 'cores') {
+                result = await ecommerceProvider.syncColor(item);
             }
 
             return res.json({ message: 'Sincronização realizada', ecommerceId: result });

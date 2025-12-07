@@ -201,6 +201,44 @@ class EcommerceProvider {
         }
     }
 
+    async syncSize(tamanho) {
+        if (!this.enabled) return null;
+        try {
+            console.log(`[EcommerceProvider] Syncing size ${tamanho.nome}...`);
+            const payload = {
+                name: 'Size',
+                option: tamanho.nome
+            };
+
+            const response = await axios.post(`${this.baseUrl}/attributes/option`, payload, {
+                headers: { 'x-integration-secret': this.secret }
+            });
+            return response.data.id;
+        } catch (error) {
+            console.error(`[EcommerceProvider] Error syncing size:`, error.response?.data || error.message);
+            return null;
+        }
+    }
+
+    async syncColor(cor) {
+        if (!this.enabled) return null;
+        try {
+            console.log(`[EcommerceProvider] Syncing color ${cor.nome}...`);
+            const payload = {
+                name: 'Color',
+                option: cor.nome
+            };
+
+            const response = await axios.post(`${this.baseUrl}/attributes/option`, payload, {
+                headers: { 'x-integration-secret': this.secret }
+            });
+            return response.data.id;
+        } catch (error) {
+            console.error(`[EcommerceProvider] Error syncing color:`, error.response?.data || error.message);
+            return null;
+        }
+    }
+
     _mapPecaToPayload(peca) {
         console.log('[EcommerceProvider] Mapping Peca to Payload:', {
             id: peca.id,
