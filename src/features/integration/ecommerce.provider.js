@@ -119,6 +119,48 @@ class EcommerceProvider {
         }
     }
 
+    async syncBrand(marca) {
+        if (!this.enabled) return null;
+        try {
+            console.log(`[EcommerceProvider] Syncing brand ${marca.nome}...`);
+            const tiptagUrl = process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '');
+            const logoUrl = marca.imagem ? (marca.imagem.startsWith('http') ? marca.imagem : `${tiptagUrl}${marca.imagem}`) : null;
+
+            // Check if exists by name
+            const searchRes = await axios.get(`${this.baseUrl}/brands`, {
+                params: { name: marca.nome },
+                headers: { 'x-integration-secret': this.secret }
+            });
+
+            const payload = {
+                name: marca.nome,
+                logo: logoUrl,
+                active: true
+            };
+
+            if (searchRes.data && searchRes.data.length > 0) {
+                const existing = searchRes.data.find(b => b.name.toLowerCase() === marca.nome.toLowerCase());
+                if (existing) {
+                    console.log(`[EcommerceProvider] Brand exists (ID: ${existing.id}). Updating...`);
+                    await axios.put(`${this.baseUrl}/brands/${existing.id}`, payload, {
+                        headers: { 'x-integration-secret': this.secret }
+                    });
+                    return existing.id;
+                }
+            }
+
+            console.log(`[EcommerceProvider] Creating brand...`);
+            const createRes = await axios.post(`${this.baseUrl}/brands`, payload, {
+                headers: { 'x-integration-secret': this.secret }
+            });
+            return createRes.data.id;
+
+        } catch (error) {
+            console.error(`[EcommerceProvider] Error syncing brand:`, error.response?.data || error.message);
+            return null;
+        }
+    }
+
     async syncCategory(categoria) {
         if (!this.enabled) return null;
         try {

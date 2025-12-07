@@ -79,10 +79,13 @@ class GenericCadastroController {
             const model = this._getModel(entidade);
             const item = await model.create(req.body);
 
-            // Sync Category if needed
+            // Sync Category or Brand if needed
             if (entidade === 'categorias') {
                 const ecommerceProvider = require('../integration/ecommerce.provider');
                 ecommerceProvider.syncCategory(item).catch(console.error);
+            } else if (entidade === 'marcas') {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                ecommerceProvider.syncBrand(item).catch(console.error);
             }
 
             return res.status(201).json(item);
@@ -103,10 +106,13 @@ class GenericCadastroController {
 
             await item.update(req.body);
 
-            // Sync Category if needed
+            // Sync Category or Brand if needed
             if (entidade === 'categorias') {
                 const ecommerceProvider = require('../integration/ecommerce.provider');
                 ecommerceProvider.syncCategory(item).catch(console.error);
+            } else if (entidade === 'marcas') {
+                const ecommerceProvider = require('../integration/ecommerce.provider');
+                ecommerceProvider.syncBrand(item).catch(console.error);
             }
 
             return res.json(item);
