@@ -32,7 +32,10 @@ class EcommerceProvider {
             }
 
             const response = await axios.post(`${this.baseUrl}/products`, payload, {
-                headers: { 'x-integration-secret': this.secret }
+                headers: {
+                    'x-integration-secret': this.secret,
+                    'x-from-sync': 'true'
+                }
             });
 
             console.log(`[EcommerceProvider] Created product in Ecommerce:`, response.data.id);
@@ -69,7 +72,10 @@ class EcommerceProvider {
             console.log(`[EcommerceProvider] Updating product ${ecommerceId} in Ecommerce...`);
 
             const response = await axios.put(`${this.baseUrl}/products/${ecommerceId}`, payload, {
-                headers: { 'x-integration-secret': this.secret }
+                headers: {
+                    'x-integration-secret': this.secret,
+                    'x-from-sync': 'true'
+                }
             });
 
             console.log(`[EcommerceProvider] Updated product in Ecommerce.`);
