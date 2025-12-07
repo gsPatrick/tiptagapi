@@ -162,12 +162,23 @@ class EcommerceProvider {
     _mapPecaToPayload(peca) {
         // Logic for Stock: 0 if sold/reserved/returned, otherwise quantity or 1
         let stock = 1;
-        const zeroStockStatuses = ['VENDIDA', 'RESERVADA_SACOLINHA', 'DEVOLVIDA_FORNECEDOR'];
+        const zeroStockStatuses = ['VENDIDA', 'RESERVADA_SACOLINHA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
 
         if (zeroStockStatuses.includes(peca.status)) {
             stock = 0;
-        } else if (peca.quantidade !== undefined) {
-            stock = peca.quantidade;
+        } else if (peca.quantidade !== undefined && peca.quantidade !== null) {
+            stock = parseInt(peca.quantidade, 10);
+        }
+
+        // Logic for Status: Published if available/new, archived if sold/returned
+        let status = 'draft';
+        const publishedStatuses = ['DISPONIVEL', 'NOVA', 'RESERVADA_ECOMMERCE'];
+        const archivedStatuses = ['VENDIDA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
+
+        if (publishedStatuses.includes(peca.status)) {
+            status = 'published';
+        } else if (archivedStatuses.includes(peca.status)) {
+            status = 'archived';
         }
 
         // Logic for Images: Ensure absolute URL using TIPTAG_API_URL
@@ -209,7 +220,7 @@ class EcommerceProvider {
             brand: peca.marca?.nome,
             category: peca.categoria?.nome,
             attributes: attributes,
-            status: peca.status === 'VENDIDA' ? 'archived' : 'published',
+            status: status,
             brechoId: peca.id,
             images: images,
             is_variable: attributes.length > 0, // Mark as variable if it has attributes
