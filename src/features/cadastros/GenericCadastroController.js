@@ -131,6 +131,31 @@ class GenericCadastroController {
             return res.status(400).json({ error: err.message });
         }
     }
+
+    async sync(req, res) {
+        try {
+            const { entidade, id } = req.params;
+
+            // Only support sync for categories for now
+            if (entidade !== 'categorias') {
+                return res.status(400).json({ error: 'Sincronização não suportada para esta entidade' });
+            }
+
+            const model = this._getModel(entidade);
+            const item = await model.findByPk(id);
+
+            if (!item) {
+                return res.status(404).json({ error: 'Registro não encontrado' });
+            }
+
+            const ecommerceProvider = require('../integration/ecommerce.provider');
+            const result = await ecommerceProvider.syncCategory(item);
+
+            return res.json({ message: 'Sincronização realizada', ecommerceId: result });
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new GenericCadastroController();

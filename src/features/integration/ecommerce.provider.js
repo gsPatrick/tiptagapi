@@ -171,6 +171,23 @@ class EcommerceProvider {
             src: f.url.startsWith('http') ? f.url : `${tiptagUrl}${f.url}`
         })) : [];
 
+        const attributes = [];
+        if (peca.cor) {
+            attributes.push({
+                name: 'Color', // Standardize to English for Ecommerce if needed, or keep 'Cor'
+                options: [{
+                    name: peca.cor.nome,
+                    hex: peca.cor.hex || '#000000' // Ensure hex is present
+                }]
+            });
+        }
+        if (peca.tamanho) {
+            attributes.push({
+                name: 'Size', // Standardize to 'Size'
+                options: [peca.tamanho.nome]
+            });
+        }
+
         const payload = {
             name: peca.descricao_curta,
             description: peca.descricao_detalhada,
@@ -185,20 +202,27 @@ class EcommerceProvider {
             },
             brand: peca.marca?.nome,
             category: peca.categoria?.nome,
-            attributes: [],
+            attributes: attributes,
             status: peca.status === 'VENDIDA' ? 'archived' : 'published',
             brechoId: peca.id,
-            images: images
+            images: images,
+            is_variable: attributes.length > 0 // Mark as variable if it has attributes
         };
 
-        if (peca.cor) {
-            payload.attributes.push({
-                name: 'Cor',
-                options: [peca.cor.nome],
-                hex: peca.cor.hex
-            });
+        // If it has attributes, we should create a default variation so it appears in filters
+        if (attributes.length > 0) {
+            const variationAttributes = {};
+            if (peca.cor) variationAttributes['Color'] = peca.cor.nome;
+            if (peca.tamanho) variationAttributes['Size'] = peca.tamanho.nome;
+
+            payload.variations = [{
+                sku: `${payload.sku}-VAR`,
+                price: payload.price,
+                stock: payload.stock,
+                attributes: variationAttributes,
+                images: images // Inherit images
+            }];
         }
-        if (peca.tamanho) payload.attributes.push({ name: 'Tamanho', options: [peca.tamanho.nome] });
 
         return payload;
     }

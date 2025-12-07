@@ -10,6 +10,7 @@ router.use(authMiddleware);
 router.get('/:entidade', (req, res) => genericCadastroController.getAll(req, res));
 router.post('/:entidade', (req, res) => genericCadastroController.create(req, res));
 router.put('/:entidade/:id', (req, res) => genericCadastroController.update(req, res));
+router.post('/:entidade/:id/sync', (req, res) => genericCadastroController.sync(req, res));
 router.delete('/:entidade/:id', (req, res) => genericCadastroController.delete(req, res));
 
 module.exports = router;

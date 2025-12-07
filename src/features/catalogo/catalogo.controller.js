@@ -72,6 +72,15 @@ class CatalogoController {
         }
     }
 
+    async syncPeca(req, res) {
+        try {
+            const result = await catalogoService.syncPeca(req.params.id);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async getAllMarcas(req, res) {
         try {
             const marcas = await catalogoService.getAllMarcas();

@@ -18,6 +18,11 @@ class CatalogoService {
         pecaData.quantidade = quantidade;
         pecaData.quantidade_inicial = quantidade;
 
+        // Map Description from frontend
+        if (data.description) {
+            pecaData.descricao_detalhada = data.description;
+        }
+
         if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && !pecaData.fornecedorId) {
             throw new Error('Fornecedor é obrigatório para consignação');
         }
@@ -157,6 +162,9 @@ class CatalogoService {
     async updatePeca(id, data) {
         const peca = await Peca.findByPk(id);
         if (!peca) throw new Error('Peca not found');
+        if (data.description) {
+            data.descricao_detalhada = data.description;
+        }
         await peca.update(data);
 
         const updatedPeca = await this.getPecaById(id);
@@ -265,6 +273,28 @@ class CatalogoService {
         }
 
         return { message: 'Peca deleted successfully' };
+    }
+
+    async syncPeca(id) {
+        const peca = await this.getPecaById(id);
+        if (!peca) throw new Error('Peca not found');
+
+        const ecommerceProvider = require('../integration/ecommerce.provider');
+
+        // Always try to create/upsert. The provider's createProduct logic handles checking if it exists.
+        // If it exists, it updates. If not, it creates.
+        // We force sync_ecommerce to true if the user manually syncs.
+        if (!peca.sync_ecommerce) {
+            await peca.update({ sync_ecommerce: true });
+        }
+
+        const ecommerceProduct = await ecommerceProvider.createProduct(peca);
+
+        if (ecommerceProduct && ecommerceProduct.sku) {
+            await peca.update({ sku_ecommerce: ecommerceProduct.sku });
+        }
+
+        return { message: 'Sincronização realizada com sucesso', ecommerceProduct };
     }
 
     async getAllMarcas() {
