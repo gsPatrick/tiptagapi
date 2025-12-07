@@ -213,7 +213,8 @@ class EcommerceProvider {
             brechoId: peca.id,
             images: images,
             is_variable: attributes.length > 0, // Mark as variable if it has attributes
-            measurements: peca.medidas // Pass measurements array
+            measurements: peca.medidas, // Pass measurements array
+            supplier: peca.fornecedor?.nome // Pass supplier name
         };
 
         // If it has attributes, we should create a default variation so it appears in filters
