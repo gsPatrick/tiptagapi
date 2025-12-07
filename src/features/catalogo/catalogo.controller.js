@@ -32,7 +32,8 @@ class CatalogoController {
 
     async updatePeca(req, res) {
         try {
-            const peca = await catalogoService.updatePeca(req.params.id, req.body);
+            const fromSync = req.headers['x-from-sync'] === 'true';
+            const peca = await catalogoService.updatePeca(req.params.id, req.body, { fromSync });
             return res.json(peca);
         } catch (err) {
             return res.status(400).json({ error: err.message });
