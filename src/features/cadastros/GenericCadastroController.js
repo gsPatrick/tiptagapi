@@ -142,8 +142,8 @@ class GenericCadastroController {
         try {
             const { entidade, id } = req.params;
 
-            // Only support sync for categories for now
-            if (entidade !== 'categorias') {
+            // Support sync for categories and brands
+            if (entidade !== 'categorias' && entidade !== 'marcas') {
                 return res.status(400).json({ error: 'Sincronização não suportada para esta entidade' });
             }
 
@@ -155,7 +155,12 @@ class GenericCadastroController {
             }
 
             const ecommerceProvider = require('../integration/ecommerce.provider');
-            const result = await ecommerceProvider.syncCategory(item);
+            let result;
+            if (entidade === 'categorias') {
+                result = await ecommerceProvider.syncCategory(item);
+            } else if (entidade === 'marcas') {
+                result = await ecommerceProvider.syncBrand(item);
+            }
 
             return res.json({ message: 'Sincronização realizada', ecommerceId: result });
         } catch (err) {
