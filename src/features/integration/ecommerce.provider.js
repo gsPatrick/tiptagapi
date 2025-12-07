@@ -176,12 +176,16 @@ class EcommerceProvider {
             stock = parseInt(peca.quantidade, 10);
         }
 
-        // Logic for Status: Published if available/new, archived if sold/returned
+        // Logic for Status: Published if available/new OR if quantity > 0, archived if sold/returned AND quantity <= 0
         let status = 'draft';
         const publishedStatuses = ['DISPONIVEL', 'NOVA', 'RESERVADA_ECOMMERCE'];
         const archivedStatuses = ['VENDIDA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
 
-        if (publishedStatuses.includes(peca.status)) {
+        // If we have stock, it should be published regardless of status (unless specifically blocked?)
+        // User reported "VENDIDA" with stock 50. This implies it should be published.
+        if (stock > 0) {
+            status = 'published';
+        } else if (publishedStatuses.includes(peca.status)) {
             status = 'published';
         } else if (archivedStatuses.includes(peca.status)) {
             status = 'archived';
