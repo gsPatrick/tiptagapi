@@ -44,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true,
         },
+        medidas: {
+            type: DataTypes.JSONB, // [{ nome: "Busto", valor: "34cm" }]
+            defaultValue: [],
+        },
         tipo_aquisicao: {
             type: DataTypes.ENUM('COMPRA', 'CONSIGNACAO', 'PERMUTA'),
             allowNull: false,
