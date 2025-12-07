@@ -160,6 +160,12 @@ class EcommerceProvider {
     }
 
     _mapPecaToPayload(peca) {
+        console.log('[EcommerceProvider] Mapping Peca to Payload:', {
+            id: peca.id,
+            status: peca.status,
+            quantidade: peca.quantidade,
+            medidas: peca.medidas
+        });
         // Logic for Stock: 0 if sold/reserved/returned, otherwise quantity or 1
         let stock = 1;
         const zeroStockStatuses = ['VENDIDA', 'RESERVADA_SACOLINHA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
