@@ -36,6 +36,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true,
         },
+        is_accessory: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+        },
         descricao_curta: {
             type: DataTypes.STRING(70),
             allowNull: false,

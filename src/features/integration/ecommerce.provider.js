@@ -236,9 +236,11 @@ class EcommerceProvider {
             status: status,
             brechoId: peca.id,
             images: images,
-            is_variable: attributes.length > 0, // Mark as variable if it has attributes
-            measurements: peca.medidas, // Pass measurements array
-            supplier: peca.fornecedor?.nome // Pass supplier name
+            is_variable: attributes.length > 0,
+            measurements: peca.medidas,
+            supplier: peca.fornecedor?.nome,
+            is_accessory: peca.is_accessory, // Sync accessory flag
+            brandImage: peca.marca?.imagem ? (peca.marca.imagem.startsWith('http') ? peca.marca.imagem : `${tiptagUrl}${peca.marca.imagem}`) : null // Sync brand image
         };
 
         // If it has attributes, we should create a default variation so it appears in filters
