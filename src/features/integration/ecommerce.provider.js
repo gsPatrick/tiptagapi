@@ -170,7 +170,10 @@ class EcommerceProvider {
         let stock = 1;
         const zeroStockStatuses = ['VENDIDA', 'RESERVADA_SACOLINHA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
 
-        if (zeroStockStatuses.includes(peca.status)) {
+        // Fix: Prioritize explicit quantity if available and > 0
+        if (peca.quantidade !== undefined && peca.quantidade !== null && parseInt(peca.quantidade, 10) > 0) {
+            stock = parseInt(peca.quantidade, 10);
+        } else if (zeroStockStatuses.includes(peca.status)) {
             stock = 0;
         } else if (peca.quantidade !== undefined && peca.quantidade !== null) {
             stock = parseInt(peca.quantidade, 10);
