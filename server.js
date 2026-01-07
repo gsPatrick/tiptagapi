@@ -22,15 +22,15 @@ async function startServer() {
 
         // 2.1 Create default user
         const { User } = require('./src/models');
-        const adminPrincipal = await User.findOne({ where: { email: 'Nos.ecolaborativo@gmail.com' } });
+        const adminPrincipal = await User.findOne({ where: { email: 'admin@alcateia.com' } });
         if (!adminPrincipal) {
             await User.create({
-                nome: 'Admin Principal',
-                email: 'Nos.ecolaborativo@gmail.com',
-                senha_hash: 'Lorena13@',
+                nome: 'Alcateia Admin',
+                email: 'admin@alcateia.com',
+                senha_hash: 'alcateiaadmin123',
                 role: 'ADMIN'
             });
-            console.log('Default user created: Nos.ecolaborativo@gmail.com');
+            console.log('Default user created: admin@alcateia.com');
         }
 
         // 3. Init Background Jobs
