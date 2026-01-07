@@ -16,9 +16,9 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('Database connected!');
 
-        // 2. Sync Models (Alter for dev/updates)
-        await sequelize.sync({ alter: true });
-        console.log('Models synced!');
+        // 2. Sync Models (User requested force: true)
+        await sequelize.sync({ force: true });
+        console.log('Models synced (Force: true)!');
 
         // 2.1 Create default user
         const { User } = require('./src/models');
