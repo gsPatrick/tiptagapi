@@ -6,6 +6,7 @@ module.exports = {
     password: process.env.DB_PASS || 'postgres',
     database: process.env.DB_NAME || 'tiptag_db',
     host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     logging: false,
     define: {
@@ -19,6 +20,7 @@ module.exports = {
     password: process.env.DB_PASS || 'postgres',
     database: process.env.DB_NAME_TEST || 'tiptag_test',
     host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     logging: false,
   },
@@ -27,6 +29,7 @@ module.exports = {
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     logging: false,
     define: {
