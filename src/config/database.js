@@ -13,6 +13,12 @@ module.exports = {
       underscored: true,
       paranoid: true, // Soft delete enabled globally
     },
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
   },
   test: {
     username: process.env.DB_USER || 'postgres',
@@ -34,5 +40,11 @@ module.exports = {
       underscored: true,
       paranoid: true,
     },
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false
+      }
+    }
   },
 };
