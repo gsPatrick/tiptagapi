@@ -8,9 +8,9 @@ const app = express();
 
 // Middlewares
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
+    crossOriginResourcePolicy: false,
 }));
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.resolve(__dirname, '..', 'uploads')));
