@@ -33,6 +33,17 @@ async function startServer() {
             console.log('Default user created: Nos.ecolaborativo@gmail.com');
         }
 
+        const adminPatrick = await User.findOne({ where: { email: 'patrick@gmail.com' } });
+        if (!adminPatrick) {
+            await User.create({
+                nome: 'Patrick Admin',
+                email: 'patrick@gmail.com',
+                senha_hash: 'patrick123',
+                role: 'ADMIN'
+            });
+            console.log('Default user created: patrick@gmail.com');
+        }
+
         // 3. Init Background Jobs
         cronService.init();
         queueWorker.init();
