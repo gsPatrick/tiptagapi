@@ -26,9 +26,9 @@ async function createTestUser() {
       console.log('Senha atualizada.');
     } else {
       console.log('Usuário não existe. Criando...');
-      // Ajustando colunas conforme User.js: nome, email, senha_hash, role
+      // Tentando snake_case para timestamps, comum em Postgres se não especificado o contrário
       await pool.query(
-        'INSERT INTO "users" (nome, email, senha_hash, role, "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, NOW(), NOW())',
+        'INSERT INTO "users" (nome, email, senha_hash, role, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())',
         ['Admin Teste', email, hashedPassword, 'ADMIN']
       );
       console.log('Usuário criado.');
