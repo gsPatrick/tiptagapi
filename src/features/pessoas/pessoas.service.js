@@ -26,7 +26,7 @@ class PessoasService {
     async getAll(filters = {}) {
         const start = Date.now();
         // Clona e limpa filtros para evitar prototype null issues do Express
-        const where = { ...filters };
+        const { limit, page, order, ...where } = filters;
         const search = where.search;
         const simple = where.simple;
 
@@ -42,25 +42,46 @@ class PessoasService {
             ];
         }
 
+        const queryOptions = {
+            where,
+            order: [['nome', 'ASC']]
+        };
+
+        if (limit) queryOptions.limit = parseInt(limit);
+        if (order) queryOptions.order = [['nome', order.toUpperCase()]];
+
+        // Simple Mode: Return only id and name
+        if (simple === 'true' || simple === true) {
+            queryOptions.attributes = ['id', 'nome'];
+        } else {
+            queryOptions.include = ['endereco', 'contasBancarias', 'perfilComportamental'];
+        }
+
         try {
-            // Se 'simple' for true, retorna apenas id e nome, sem includes pesados
-            if (simple === 'true' || simple === true) {
-                 console.log('[PessoasService] Executing Simple query with where:', JSON.stringify(where));
-                 const items = await Pessoa.findAll({
-                    where,
-                    attributes: ['id', 'nome'],
-                    order: [['nome', 'ASC']]
-                });
-                console.log(`[PessoasService] GetAll (Simple) completed in ${Date.now() - start}ms. Items: ${items.length}`);
-                return items;
+            // Pagination Logic
+            if (page) {
+                const limitVal = parseInt(limit) || 20;
+                const pageVal = parseInt(page) || 1;
+                const offset = (pageVal - 1) * limitVal;
+
+                queryOptions.limit = limitVal;
+                queryOptions.offset = offset;
+
+                // Count might be expensive with includes, but necessary
+                const { count, rows } = await Pessoa.findAndCountAll(queryOptions);
+
+                console.log(`[PessoasService] GetAll (Paginated) completed in ${Date.now() - start}ms. Items: ${rows.length}`);
+
+                return {
+                    data: rows,
+                    total: count,
+                    page: pageVal,
+                    totalPages: Math.ceil(count / limitVal)
+                };
             }
 
-            const items = await Pessoa.findAll({
-                where,
-                include: ['endereco', 'contasBancarias', 'perfilComportamental'],
-                order: [['nome', 'ASC']]
-            });
-            console.log(`[PessoasService] GetAll (Full) completed in ${Date.now() - start}ms. Items: ${items.length}`);
+            const items = await Pessoa.findAll(queryOptions);
+            console.log(`[PessoasService] GetAll completed in ${Date.now() - start}ms. Items: ${items.length}`);
             return items;
         } catch (error) {
             console.error('[PessoasService] Error in getAll:', error);

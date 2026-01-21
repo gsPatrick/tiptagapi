@@ -128,11 +128,11 @@ class CatalogoService {
                 { model: Marca, as: 'marca' },
                 { model: Categoria, as: 'categoria' },
             ],
+            distinct: true // Important for correct count with includes
         };
 
-        if (limit) queryOptions.limit = parseInt(limit);
+        // Sorting
         if (order) {
-            // Handle "field:direction" format or just "desc" (assuming createdAt)
             if (order.includes(':')) {
                 const [field, dir] = order.split(':');
                 queryOptions.order = [[field, dir.toUpperCase()]];
@@ -143,6 +143,27 @@ class CatalogoService {
             queryOptions.order = [['createdAt', 'DESC']]; // Default
         }
 
+        // Pagination Logic
+        if (page) {
+            const limitVal = parseInt(limit) || 20;
+            const pageVal = parseInt(page) || 1;
+            const offset = (pageVal - 1) * limitVal;
+
+            queryOptions.limit = limitVal;
+            queryOptions.offset = offset;
+
+            const { count, rows } = await Peca.findAndCountAll(queryOptions);
+
+            return {
+                data: rows,
+                total: count,
+                page: pageVal,
+                totalPages: Math.ceil(count / limitVal)
+            };
+        }
+
+        // Legacy: Return all (or just limited) as array
+        if (limit) queryOptions.limit = parseInt(limit);
         return await Peca.findAll(queryOptions);
     }
 
