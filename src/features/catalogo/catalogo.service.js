@@ -6,6 +6,15 @@ class CatalogoService {
         console.log('[CatalogoService] Creating Peca:', data);
         const { fotos, ...pecaData } = data;
 
+        // Sanitize empty strings to null for numeric/foreign key fields
+        const numericFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId',
+            'preco_venda', 'preco_custo', 'peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        numericFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined) {
+                pecaData[field] = null;
+            }
+        });
+
         // Auto-generate sequential ID and label code
         const lastPeca = await Peca.findOne({
             order: [['id', 'DESC']],
