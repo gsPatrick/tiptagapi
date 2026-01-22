@@ -18,6 +18,7 @@ class CatalogoService {
         // Auto-generate sequential ID and label code
         const lastPeca = await Peca.findOne({
             order: [['id', 'DESC']],
+            paranoid: false
         });
         const nextSeq = lastPeca ? (parseInt(lastPeca.codigo_etiqueta.split('-')[1]) || 1000) + 1 : 1001;
         pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
