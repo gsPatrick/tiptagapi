@@ -193,6 +193,15 @@ class CatalogoService {
     async updatePeca(id, data) {
         const peca = await Peca.findByPk(id);
         if (!peca) throw new Error('Peca not found');
+
+        // Sanitize empty strings to null for numeric/foreign key fields
+        const numericFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId',
+            'preco_venda', 'preco_custo', 'peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        numericFields.forEach(field => {
+            if (data[field] === '') {
+                data[field] = null;
+            }
+        });
         if (data.description) {
             data.descricao_detalhada = data.description;
         }
