@@ -260,19 +260,16 @@ class EcommerceProvider {
         }
 
         // Logic for Status: Published if available/new OR if quantity > 0, archived if sold/returned AND quantity <= 0
-        let status = 'draft';
-        const publishedStatuses = ['DISPONIVEL', 'NOVA', 'RESERVADA_ECOMMERCE'];
-        const archivedStatuses = ['VENDIDA', 'DEVOLVIDA_FORNECEDOR', 'EXTRAVIADA', 'DOADA'];
+        // Logic for Status: User requested to ALWAYS show the product, even if stock is 0 or sold.
+        // So we default to 'published' instead of 'archived' or 'draft'.
+        let status = 'published';
 
-        // If we have stock, it should be published regardless of status (unless specifically blocked?)
-        // User reported "VENDIDA" with stock 50. This implies it should be published.
-        if (stock > 0) {
-            status = 'published';
-        } else if (publishedStatuses.includes(peca.status)) {
-            status = 'published';
-        } else if (archivedStatuses.includes(peca.status)) {
-            status = 'archived';
-        }
+        // We only archive if it's specifically something that shouldn't be seen at all (like maybe Error?)
+        // But user said "independente do status", so we trust that.
+        // If the user wants to hide it, they can toggle 'sync_ecommerce' to false (which handled in caller).
+
+        // Example: If stock is 0, it will be published but "Out of Stock" on the storefront.
+
 
         // Logic for Images: Ensure absolute URL using TIPTAG_API_URL
         const tiptagUrl = process.env.TIPTAG_API_URL || this.baseUrl.replace('/api/v1', '');
