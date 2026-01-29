@@ -205,6 +205,21 @@ class CatalogoService {
         if (data.description) {
             data.descricao_detalhada = data.description;
         }
+
+        // Handle Photos Update
+        if (data.fotos && Array.isArray(data.fotos)) {
+            await FotoPeca.destroy({ where: { pecaId: id } });
+
+            if (data.fotos.length > 0) {
+                const fotosData = data.fotos.map((url, index) => ({
+                    pecaId: id,
+                    url,
+                    ordem: index,
+                }));
+                await FotoPeca.bulkCreate(fotosData);
+            }
+        }
+
         await peca.update(data);
 
         const updatedPeca = await this.getPecaById(id);
