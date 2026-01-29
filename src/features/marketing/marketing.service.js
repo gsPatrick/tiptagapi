@@ -33,17 +33,7 @@ class MarketingService {
         return { message: `${pecas.length} produtos adicionados à campanha` };
     }
 
-    async triggerBotMatch(pecaId) {
-        const peca = await Peca.findByPk(pecaId, {
-            include: ['tamanho', 'marca']
-        });
-        if (!peca) return;
-
-        // Placeholder logic for bot matching
-        // In a real scenario, we would query PerfilComportamental
-
-        return { message: 'Bot triggered (Placeholder)' };
-    }
+    // triggerBotMatch removed as per request
 
     async getProdutosCampanha(filters = {}) {
         const whereClause = {};

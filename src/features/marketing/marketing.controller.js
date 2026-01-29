@@ -19,15 +19,7 @@ class MarketingController {
         }
     }
 
-    async triggerBotMatch(req, res) {
-        try {
-            const { pecaId } = req.body;
-            const result = await marketingService.triggerBotMatch(pecaId);
-            return res.json(result);
-        } catch (err) {
-            return res.status(400).json({ error: err.message });
-        }
-    }
+    // triggerBotMatch removed as per request
 
     async addProdutosToCampanha(req, res) {
         try {

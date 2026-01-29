@@ -291,37 +291,7 @@ class VendasService {
             // -------------------------
 
             // --- NOTIFICATION TRIGGER (Dynamic) ---
-            try {
-                if (clienteId) {
-                    const cliente = await Pessoa.findByPk(clienteId);
-                    if (cliente && cliente.telefone_whatsapp) {
-
-                        const listaProdutos = itensResumo.map(i => `👗 ${i.nome} - R$ ${parseFloat(i.valor).toFixed(2)}`).join('\n');
-                        const msgCashback = valorCashback > 0 ? `\n✨ Credito ganho: R$ ${valorCashback.toFixed(2)}` : '';
-
-                        const mensagemBonita = `Olá ${cliente.nome}! 💖\nQue alegria ter você por aqui!\n\nAqui está o resumo das suas comprinhas:\n${listaProdutos}\n\n💰 Total: R$ ${totalPago.toFixed(2)}${msgCashback}\n\nObrigado por garimpar com a gente! ♻️`;
-
-                        /*
-                        await automacaoService.agendarMensagem({
-                            telefone: cliente.telefone_whatsapp,
-                            canal: 'WHATSAPP',
-                            gatilho: 'POS_VENDA',
-                            variaveis: {
-                                NOME_CLIENTE: cliente.nome,
-                                CODIGO_PEDIDO: pedido.codigo_pedido,
-                                VALOR_TOTAL: totalPago.toFixed(2)
-                            },
-                            // Fallback message if template not found (using our new beautiful format)
-                            // mensagem: mensagemBonita
-                        });
-                        */
-                        console.log('Notificação de pós-venda desativada conforme solicitação.');
-                    }
-                }
-            } catch (msgErr) {
-                console.error("Erro ao agendar mensagem pós-venda:", msgErr);
-                // Não falhar a venda se a mensagem der erro
-            }
+            // Removed as per request (Post-Sale bot should not exist)
             // -------------------------------------------
 
             return pedido;
