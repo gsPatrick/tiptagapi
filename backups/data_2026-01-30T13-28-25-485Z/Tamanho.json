@@ -1,0 +1,826 @@
+[
+  {
+    "id": 1,
+    "nome": "U",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:26.689Z",
+    "updatedAt": "2026-01-30T13:12:26.689Z",
+    "deletedAt": null
+  },
+  {
+    "id": 2,
+    "nome": "M",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:26.894Z",
+    "updatedAt": "2026-01-30T13:12:26.894Z",
+    "deletedAt": null
+  },
+  {
+    "id": 3,
+    "nome": "38",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:27.090Z",
+    "updatedAt": "2026-01-30T13:12:27.090Z",
+    "deletedAt": null
+  },
+  {
+    "id": 4,
+    "nome": "42",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:27.333Z",
+    "updatedAt": "2026-01-30T13:12:27.333Z",
+    "deletedAt": null
+  },
+  {
+    "id": 5,
+    "nome": "P",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:27.612Z",
+    "updatedAt": "2026-01-30T13:12:27.612Z",
+    "deletedAt": null
+  },
+  {
+    "id": 6,
+    "nome": "G",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:27.729Z",
+    "updatedAt": "2026-01-30T13:12:27.729Z",
+    "deletedAt": null
+  },
+  {
+    "id": 7,
+    "nome": "6",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:28.030Z",
+    "updatedAt": "2026-01-30T13:12:28.030Z",
+    "deletedAt": null
+  },
+  {
+    "id": 8,
+    "nome": "12",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:28.329Z",
+    "updatedAt": "2026-01-30T13:12:28.329Z",
+    "deletedAt": null
+  },
+  {
+    "id": 9,
+    "nome": "3",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:28.835Z",
+    "updatedAt": "2026-01-30T13:12:28.835Z",
+    "deletedAt": null
+  },
+  {
+    "id": 10,
+    "nome": "GG",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:29.059Z",
+    "updatedAt": "2026-01-30T13:12:29.059Z",
+    "deletedAt": null
+  },
+  {
+    "id": 11,
+    "nome": "TA",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:29.206Z",
+    "updatedAt": "2026-01-30T13:12:29.206Z",
+    "deletedAt": null
+  },
+  {
+    "id": 12,
+    "nome": "UN",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:29.333Z",
+    "updatedAt": "2026-01-30T13:12:29.333Z",
+    "deletedAt": null
+  },
+  {
+    "id": 13,
+    "nome": "DE",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:29.538Z",
+    "updatedAt": "2026-01-30T13:12:29.538Z",
+    "deletedAt": null
+  },
+  {
+    "id": 14,
+    "nome": "1",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:29.707Z",
+    "updatedAt": "2026-01-30T13:12:29.707Z",
+    "deletedAt": null
+  },
+  {
+    "id": 15,
+    "nome": "9",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:30.091Z",
+    "updatedAt": "2026-01-30T13:12:30.091Z",
+    "deletedAt": null
+  },
+  {
+    "id": 16,
+    "nome": "4",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:30.275Z",
+    "updatedAt": "2026-01-30T13:12:30.275Z",
+    "deletedAt": null
+  },
+  {
+    "id": 17,
+    "nome": "RN",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:30.722Z",
+    "updatedAt": "2026-01-30T13:12:30.722Z",
+    "deletedAt": null
+  },
+  {
+    "id": 18,
+    "nome": "06",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:31.057Z",
+    "updatedAt": "2026-01-30T13:12:31.057Z",
+    "deletedAt": null
+  },
+  {
+    "id": 19,
+    "nome": "PP",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:32.507Z",
+    "updatedAt": "2026-01-30T13:12:32.507Z",
+    "deletedAt": null
+  },
+  {
+    "id": 20,
+    "nome": "6M",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:35.289Z",
+    "updatedAt": "2026-01-30T13:12:35.289Z",
+    "deletedAt": null
+  },
+  {
+    "id": 21,
+    "nome": "20",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:35.427Z",
+    "updatedAt": "2026-01-30T13:12:35.427Z",
+    "deletedAt": null
+  },
+  {
+    "id": 22,
+    "nome": "37",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:39.564Z",
+    "updatedAt": "2026-01-30T13:12:39.564Z",
+    "deletedAt": null
+  },
+  {
+    "id": 23,
+    "nome": "54",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:39.875Z",
+    "updatedAt": "2026-01-30T13:12:39.875Z",
+    "deletedAt": null
+  },
+  {
+    "id": 24,
+    "nome": "16",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:40.511Z",
+    "updatedAt": "2026-01-30T13:12:40.511Z",
+    "deletedAt": null
+  },
+  {
+    "id": 25,
+    "nome": "36",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:40.749Z",
+    "updatedAt": "2026-01-30T13:12:40.749Z",
+    "deletedAt": null
+  },
+  {
+    "id": 26,
+    "nome": "40",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:40.965Z",
+    "updatedAt": "2026-01-30T13:12:40.965Z",
+    "deletedAt": null
+  },
+  {
+    "id": 27,
+    "nome": "14",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:41.889Z",
+    "updatedAt": "2026-01-30T13:12:41.889Z",
+    "deletedAt": null
+  },
+  {
+    "id": 28,
+    "nome": "17",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:42.822Z",
+    "updatedAt": "2026-01-30T13:12:42.822Z",
+    "deletedAt": null
+  },
+  {
+    "id": 29,
+    "nome": "25",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:43.050Z",
+    "updatedAt": "2026-01-30T13:12:43.050Z",
+    "deletedAt": null
+  },
+  {
+    "id": 30,
+    "nome": "19",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:43.178Z",
+    "updatedAt": "2026-01-30T13:12:43.178Z",
+    "deletedAt": null
+  },
+  {
+    "id": 31,
+    "nome": "09",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:43.293Z",
+    "updatedAt": "2026-01-30T13:12:43.293Z",
+    "deletedAt": null
+  },
+  {
+    "id": 32,
+    "nome": "10",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:43.645Z",
+    "updatedAt": "2026-01-30T13:12:43.645Z",
+    "deletedAt": null
+  },
+  {
+    "id": 33,
+    "nome": "8",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:44.076Z",
+    "updatedAt": "2026-01-30T13:12:44.076Z",
+    "deletedAt": null
+  },
+  {
+    "id": 34,
+    "nome": "21",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:45.310Z",
+    "updatedAt": "2026-01-30T13:12:45.310Z",
+    "deletedAt": null
+  },
+  {
+    "id": 35,
+    "nome": "27",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:45.658Z",
+    "updatedAt": "2026-01-30T13:12:45.658Z",
+    "deletedAt": null
+  },
+  {
+    "id": 36,
+    "nome": "29",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:45.792Z",
+    "updatedAt": "2026-01-30T13:12:45.792Z",
+    "deletedAt": null
+  },
+  {
+    "id": 37,
+    "nome": "28",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:46.268Z",
+    "updatedAt": "2026-01-30T13:12:46.268Z",
+    "deletedAt": null
+  },
+  {
+    "id": 38,
+    "nome": "24",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:46.999Z",
+    "updatedAt": "2026-01-30T13:12:46.999Z",
+    "deletedAt": null
+  },
+  {
+    "id": 39,
+    "nome": "34",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:47.685Z",
+    "updatedAt": "2026-01-30T13:12:47.685Z",
+    "deletedAt": null
+  },
+  {
+    "id": 40,
+    "nome": "18",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:49.759Z",
+    "updatedAt": "2026-01-30T13:12:49.759Z",
+    "deletedAt": null
+  },
+  {
+    "id": 41,
+    "nome": "2T",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:49.999Z",
+    "updatedAt": "2026-01-30T13:12:49.999Z",
+    "deletedAt": null
+  },
+  {
+    "id": 42,
+    "nome": "2",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:53.006Z",
+    "updatedAt": "2026-01-30T13:12:53.006Z",
+    "deletedAt": null
+  },
+  {
+    "id": 43,
+    "nome": "5",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:53.260Z",
+    "updatedAt": "2026-01-30T13:12:53.260Z",
+    "deletedAt": null
+  },
+  {
+    "id": 44,
+    "nome": "3T",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:12:57.770Z",
+    "updatedAt": "2026-01-30T13:12:57.770Z",
+    "deletedAt": null
+  },
+  {
+    "id": 45,
+    "nome": "35",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:01.462Z",
+    "updatedAt": "2026-01-30T13:13:01.462Z",
+    "deletedAt": null
+  },
+  {
+    "id": 46,
+    "nome": "22",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:02.097Z",
+    "updatedAt": "2026-01-30T13:13:02.097Z",
+    "deletedAt": null
+  },
+  {
+    "id": 47,
+    "nome": "15",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:03.125Z",
+    "updatedAt": "2026-01-30T13:13:03.125Z",
+    "deletedAt": null
+  },
+  {
+    "id": 48,
+    "nome": "33",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:06.591Z",
+    "updatedAt": "2026-01-30T13:13:06.591Z",
+    "deletedAt": null
+  },
+  {
+    "id": 49,
+    "nome": "3M",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:08.606Z",
+    "updatedAt": "2026-01-30T13:13:08.606Z",
+    "deletedAt": null
+  },
+  {
+    "id": 50,
+    "nome": "2A",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:12.246Z",
+    "updatedAt": "2026-01-30T13:13:12.246Z",
+    "deletedAt": null
+  },
+  {
+    "id": 51,
+    "nome": "1A",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:12.602Z",
+    "updatedAt": "2026-01-30T13:13:12.602Z",
+    "deletedAt": null
+  },
+  {
+    "id": 52,
+    "nome": "02",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:14.567Z",
+    "updatedAt": "2026-01-30T13:13:14.567Z",
+    "deletedAt": null
+  },
+  {
+    "id": 53,
+    "nome": "R",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:19.404Z",
+    "updatedAt": "2026-01-30T13:13:19.404Z",
+    "deletedAt": null
+  },
+  {
+    "id": 54,
+    "nome": "9M",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:19.826Z",
+    "updatedAt": "2026-01-30T13:13:19.826Z",
+    "deletedAt": null
+  },
+  {
+    "id": 55,
+    "nome": "3A",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:22.581Z",
+    "updatedAt": "2026-01-30T13:13:22.581Z",
+    "deletedAt": null
+  },
+  {
+    "id": 56,
+    "nome": "05",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:24.786Z",
+    "updatedAt": "2026-01-30T13:13:24.786Z",
+    "deletedAt": null
+  },
+  {
+    "id": 57,
+    "nome": "1M",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:27.192Z",
+    "updatedAt": "2026-01-30T13:13:27.192Z",
+    "deletedAt": null
+  },
+  {
+    "id": 58,
+    "nome": "A",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:28.531Z",
+    "updatedAt": "2026-01-30T13:13:28.531Z",
+    "deletedAt": null
+  },
+  {
+    "id": 59,
+    "nome": "3-",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:29.687Z",
+    "updatedAt": "2026-01-30T13:13:29.687Z",
+    "deletedAt": null
+  },
+  {
+    "id": 60,
+    "nome": "03",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:31.947Z",
+    "updatedAt": "2026-01-30T13:13:31.947Z",
+    "deletedAt": null
+  },
+  {
+    "id": 61,
+    "nome": "23",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:32.700Z",
+    "updatedAt": "2026-01-30T13:13:32.700Z",
+    "deletedAt": null
+  },
+  {
+    "id": 62,
+    "nome": "26",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:35.435Z",
+    "updatedAt": "2026-01-30T13:13:35.435Z",
+    "deletedAt": null
+  },
+  {
+    "id": 63,
+    "nome": "30",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:36.009Z",
+    "updatedAt": "2026-01-30T13:13:36.009Z",
+    "deletedAt": null
+  },
+  {
+    "id": 64,
+    "nome": "0",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:36.221Z",
+    "updatedAt": "2026-01-30T13:13:36.221Z",
+    "deletedAt": null
+  },
+  {
+    "id": 65,
+    "nome": "44",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:41.416Z",
+    "updatedAt": "2026-01-30T13:13:41.416Z",
+    "deletedAt": null
+  },
+  {
+    "id": 66,
+    "nome": "BO",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:41.973Z",
+    "updatedAt": "2026-01-30T13:13:41.973Z",
+    "deletedAt": null
+  },
+  {
+    "id": 67,
+    "nome": "46",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:44.287Z",
+    "updatedAt": "2026-01-30T13:13:44.287Z",
+    "deletedAt": null
+  },
+  {
+    "id": 68,
+    "nome": "39",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:46.963Z",
+    "updatedAt": "2026-01-30T13:13:46.963Z",
+    "deletedAt": null
+  },
+  {
+    "id": 69,
+    "nome": "41",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:48.012Z",
+    "updatedAt": "2026-01-30T13:13:48.012Z",
+    "deletedAt": null
+  },
+  {
+    "id": 70,
+    "nome": "XS",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:50.376Z",
+    "updatedAt": "2026-01-30T13:13:50.376Z",
+    "deletedAt": null
+  },
+  {
+    "id": 71,
+    "nome": "7",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:51.784Z",
+    "updatedAt": "2026-01-30T13:13:51.784Z",
+    "deletedAt": null
+  },
+  {
+    "id": 72,
+    "nome": "13",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:51.919Z",
+    "updatedAt": "2026-01-30T13:13:51.919Z",
+    "deletedAt": null
+  },
+  {
+    "id": 73,
+    "nome": "31",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:57.417Z",
+    "updatedAt": "2026-01-30T13:13:57.417Z",
+    "deletedAt": null
+  },
+  {
+    "id": 74,
+    "nome": "07",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:13:59.774Z",
+    "updatedAt": "2026-01-30T13:13:59.774Z",
+    "deletedAt": null
+  },
+  {
+    "id": 75,
+    "nome": "6/",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:03.811Z",
+    "updatedAt": "2026-01-30T13:14:03.811Z",
+    "deletedAt": null
+  },
+  {
+    "id": 76,
+    "nome": "3/",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:04.046Z",
+    "updatedAt": "2026-01-30T13:14:04.046Z",
+    "deletedAt": null
+  },
+  {
+    "id": 77,
+    "nome": "9/",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:07.107Z",
+    "updatedAt": "2026-01-30T13:14:07.107Z",
+    "deletedAt": null
+  },
+  {
+    "id": 78,
+    "nome": "P/",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:08.726Z",
+    "updatedAt": "2026-01-30T13:14:08.726Z",
+    "deletedAt": null
+  },
+  {
+    "id": 79,
+    "nome": "XL",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:14.583Z",
+    "updatedAt": "2026-01-30T13:14:14.583Z",
+    "deletedAt": null
+  },
+  {
+    "id": 80,
+    "nome": "9-",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:15.702Z",
+    "updatedAt": "2026-01-30T13:14:15.702Z",
+    "deletedAt": null
+  },
+  {
+    "id": 81,
+    "nome": "S",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:17.161Z",
+    "updatedAt": "2026-01-30T13:14:17.161Z",
+    "deletedAt": null
+  },
+  {
+    "id": 82,
+    "nome": "O",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:34.542Z",
+    "updatedAt": "2026-01-30T13:14:34.542Z",
+    "deletedAt": null
+  },
+  {
+    "id": 83,
+    "nome": "4T",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:14:47.957Z",
+    "updatedAt": "2026-01-30T13:14:47.957Z",
+    "deletedAt": null
+  },
+  {
+    "id": 84,
+    "nome": "L",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:13.166Z",
+    "updatedAt": "2026-01-30T13:15:13.166Z",
+    "deletedAt": null
+  },
+  {
+    "id": 85,
+    "nome": "G+",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:20.793Z",
+    "updatedAt": "2026-01-30T13:15:20.793Z",
+    "deletedAt": null
+  },
+  {
+    "id": 86,
+    "nome": "56",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:31.167Z",
+    "updatedAt": "2026-01-30T13:15:31.167Z",
+    "deletedAt": null
+  },
+  {
+    "id": 87,
+    "nome": "G/",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:34.100Z",
+    "updatedAt": "2026-01-30T13:15:34.100Z",
+    "deletedAt": null
+  },
+  {
+    "id": 88,
+    "nome": "XX",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:38.184Z",
+    "updatedAt": "2026-01-30T13:15:38.184Z",
+    "deletedAt": null
+  },
+  {
+    "id": 89,
+    "nome": "50",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:42.022Z",
+    "updatedAt": "2026-01-30T13:15:42.022Z",
+    "deletedAt": null
+  },
+  {
+    "id": 90,
+    "nome": "XG",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:42.691Z",
+    "updatedAt": "2026-01-30T13:15:42.691Z",
+    "deletedAt": null
+  },
+  {
+    "id": 91,
+    "nome": "G2",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:15:43.720Z",
+    "updatedAt": "2026-01-30T13:15:43.720Z",
+    "deletedAt": null
+  },
+  {
+    "id": 92,
+    "nome": "52",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:06.758Z",
+    "updatedAt": "2026-01-30T13:16:06.758Z",
+    "deletedAt": null
+  },
+  {
+    "id": 93,
+    "nome": "32",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:07.654Z",
+    "updatedAt": "2026-01-30T13:16:07.654Z",
+    "deletedAt": null
+  },
+  {
+    "id": 94,
+    "nome": "51",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:10.862Z",
+    "updatedAt": "2026-01-30T13:16:10.862Z",
+    "deletedAt": null
+  },
+  {
+    "id": 95,
+    "nome": "NB",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:22.559Z",
+    "updatedAt": "2026-01-30T13:16:22.559Z",
+    "deletedAt": null
+  },
+  {
+    "id": 96,
+    "nome": "C1",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:27.244Z",
+    "updatedAt": "2026-01-30T13:16:27.244Z",
+    "deletedAt": null
+  },
+  {
+    "id": 97,
+    "nome": "C7",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:27.355Z",
+    "updatedAt": "2026-01-30T13:16:27.355Z",
+    "deletedAt": null
+  },
+  {
+    "id": 98,
+    "nome": "43",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:16:58.237Z",
+    "updatedAt": "2026-01-30T13:16:58.237Z",
+    "deletedAt": null
+  },
+  {
+    "id": 99,
+    "nome": "01",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:17:01.117Z",
+    "updatedAt": "2026-01-30T13:17:01.117Z",
+    "deletedAt": null
+  },
+  {
+    "id": 100,
+    "nome": "G3",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:17:32.393Z",
+    "updatedAt": "2026-01-30T13:17:32.393Z",
+    "deletedAt": null
+  },
+  {
+    "id": 101,
+    "nome": "04",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:17:48.269Z",
+    "updatedAt": "2026-01-30T13:17:48.269Z",
+    "deletedAt": null
+  },
+  {
+    "id": 102,
+    "nome": "11",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:17:48.744Z",
+    "updatedAt": "2026-01-30T13:17:48.744Z",
+    "deletedAt": null
+  },
+  {
+    "id": 103,
+    "nome": "47",
+    "ordem": 0,
+    "createdAt": "2026-01-30T13:18:12.844Z",
+    "updatedAt": "2026-01-30T13:18:12.844Z",
+    "deletedAt": null
+  }
+]

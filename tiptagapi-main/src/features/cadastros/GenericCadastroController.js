@@ -42,10 +42,12 @@ class GenericCadastroController {
     async getAll(req, res) {
         try {
             const { entidade } = req.params;
+            const start = Date.now();
             console.log(`[GenericCadastro] GetAll ${entidade} params:`, req.query);
             const model = this._getModel(entidade);
 
-            const where = { ...req.query };
+            // Separate simple param from where clause
+            const { simple, ...where } = req.query;
 
             // Case-insensitive search for 'nome'
             if (where.nome) {
@@ -53,19 +55,51 @@ class GenericCadastroController {
                 const nomeValue = where.nome;
                 delete where.nome;
 
-                const items = await model.findAll({
+                const queryOptions = {
                     where: {
                         ...where,
                         nome: Sequelize.where(
                             Sequelize.fn('lower', Sequelize.col('nome')),
                             Sequelize.fn('lower', nomeValue)
                         )
-                    }
-                });
+                    },
+                    order: [['nome', 'ASC']]
+                };
+
+                if (simple === 'true') {
+                    queryOptions.attributes = ['id', 'nome'];
+                }
+
+                const items = await model.findAll(queryOptions);
+                const duration = Date.now() - start;
+                console.log(`[GenericCadastro] GetAll ${entidade} completed in ${duration}ms. Items: ${items.length}`);
                 return res.json(items);
             }
 
-            const items = await model.findAll({ where });
+            // Implementação simples de ordenação padrão se tiver coluna nome
+            let order = [];
+            // Verifica se o modelo tem coluna 'nome' para ordenar
+            if (model.rawAttributes.nome) {
+                order = [['nome', 'ASC']];
+            }
+
+            const queryOptions = { where, order };
+            if (simple === 'true') {
+                // Check if model has 'nome' attribute before selecting it
+                if (model.rawAttributes.nome) {
+                    queryOptions.attributes = ['id', 'nome'];
+                } else {
+                     // If no 'nome', select minimal valid columns (usually id is always there)
+                     // Or fallback to default select if 'nome' is missing
+                     queryOptions.attributes = ['id'];
+                     if (model.rawAttributes.descricao) queryOptions.attributes.push('descricao');
+                     if (model.rawAttributes.titulo) queryOptions.attributes.push('titulo');
+                }
+            }
+
+            const items = await model.findAll(queryOptions);
+            const duration = Date.now() - start;
+            console.log(`[GenericCadastro] GetAll ${entidade} completed in ${duration}ms. Items: ${items.length}`);
             return res.json(items);
         } catch (err) {
             return res.status(400).json({ error: err.message });

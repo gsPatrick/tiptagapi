@@ -24,8 +24,15 @@ class PessoasService {
     }
 
     async getAll(filters = {}) {
-        const { search, ...otherFilters } = filters;
-        const where = { ...otherFilters };
+        const start = Date.now();
+        // Clona e limpa filtros para evitar prototype null issues do Express
+        const where = { ...filters };
+        const search = where.search;
+        const simple = where.simple;
+
+        // Remove chaves especiais do where
+        delete where.search;
+        delete where.simple;
 
         if (search) {
             where[Op.or] = [
@@ -35,11 +42,30 @@ class PessoasService {
             ];
         }
 
-        return await Pessoa.findAll({
-            where,
-            include: ['endereco', 'contasBancarias', 'perfilComportamental'],
-            order: [['nome', 'ASC']]
-        });
+        try {
+            // Se 'simple' for true, retorna apenas id e nome, sem includes pesados
+            if (simple === 'true' || simple === true) {
+                 console.log('[PessoasService] Executing Simple query with where:', JSON.stringify(where));
+                 const items = await Pessoa.findAll({
+                    where,
+                    attributes: ['id', 'nome'],
+                    order: [['nome', 'ASC']]
+                });
+                console.log(`[PessoasService] GetAll (Simple) completed in ${Date.now() - start}ms. Items: ${items.length}`);
+                return items;
+            }
+
+            const items = await Pessoa.findAll({
+                where,
+                include: ['endereco', 'contasBancarias', 'perfilComportamental'],
+                order: [['nome', 'ASC']]
+            });
+            console.log(`[PessoasService] GetAll (Full) completed in ${Date.now() - start}ms. Items: ${items.length}`);
+            return items;
+        } catch (error) {
+            console.error('[PessoasService] Error in getAll:', error);
+            throw error;
+        }
     }
 
     async getById(id) {
