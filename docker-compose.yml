@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:16
+    container_name: tiptag_db
+    environment:
+      POSTGRES_USER: tiptag
+      POSTGRES_PASSWORD: tiptag
+      POSTGRES_DB: tiptag
+    ports:
+      - "5432:5432"
+    volumes:
+      - tiptag_pg:/var/lib/postgresql/data
+
+volumes:
+  tiptag_pg:

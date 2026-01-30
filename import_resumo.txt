@@ -1,0 +1,10 @@
+Resumo:
+Total processado: 6184
+Criados: 6184
+Duplicados ignorados: 0
+Falhas: 0
+Ignorados (validação): 0
+
+Logs:
+- C:\Users\David\Desktop\ApiLojaSimples\tiptagapi-main\import_sucesso.jsonl
+- C:\Users\David\Desktop\ApiLojaSimples\tiptagapi-main\import_erros.jsonl
