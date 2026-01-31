@@ -90,6 +90,16 @@ class CatalogoController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+    async getExpiringPecas(req, res) {
+        try {
+            const days = req.query.days ? parseInt(req.query.days) : 60;
+            const pecas = await catalogoService.getExpiringPecas(days);
+            return res.json(pecas);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new CatalogoController();

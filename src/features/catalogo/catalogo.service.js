@@ -357,6 +357,27 @@ class CatalogoService {
             order: [['nome', 'ASC']]
         });
     }
+
+    async getExpiringPecas(days = 60) {
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() - days);
+
+        return await Peca.findAll({
+            where: {
+                tipo_aquisicao: 'CONSIGNACAO',
+                status: 'DISPONIVEL',
+                data_entrada: {
+                    [Op.lt]: expirationDate
+                }
+            },
+            include: [
+                { model: Pessoa, as: 'fornecedor', attributes: ['id', 'nome', 'telefone_whatsapp'] },
+                { model: Tamanho, as: 'tamanho' },
+                { model: Cor, as: 'cor' },
+            ],
+            order: [['data_entrada', 'ASC']]
+        });
+    }
 }
 
 module.exports = new CatalogoService();

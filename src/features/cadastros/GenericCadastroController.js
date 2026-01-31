@@ -10,7 +10,8 @@ const {
     DimensaoPadrao,
     ContaBancariaLoja,
     TipoDeReceitaDespesa,
-    FormaPagamento
+    FormaPagamento,
+    Notificacao
 } = require('../../models');
 
 const modelMap = {
@@ -26,7 +27,8 @@ const modelMap = {
     'contas-loja': ContaBancariaLoja,
     'receitas-despesas': TipoDeReceitaDespesa,
     'contas-pessoa': require('../../models').ContaBancariaPessoa,
-    'formas-pagamento': FormaPagamento
+    'formas-pagamento': FormaPagamento,
+    'notificacoes': Notificacao
 };
 
 class GenericCadastroController {
@@ -89,11 +91,11 @@ class GenericCadastroController {
                 if (model.rawAttributes.nome) {
                     queryOptions.attributes = ['id', 'nome'];
                 } else {
-                     // If no 'nome', select minimal valid columns (usually id is always there)
-                     // Or fallback to default select if 'nome' is missing
-                     queryOptions.attributes = ['id'];
-                     if (model.rawAttributes.descricao) queryOptions.attributes.push('descricao');
-                     if (model.rawAttributes.titulo) queryOptions.attributes.push('titulo');
+                    // If no 'nome', select minimal valid columns (usually id is always there)
+                    // Or fallback to default select if 'nome' is missing
+                    queryOptions.attributes = ['id'];
+                    if (model.rawAttributes.descricao) queryOptions.attributes.push('descricao');
+                    if (model.rawAttributes.titulo) queryOptions.attributes.push('titulo');
                 }
             }
 
