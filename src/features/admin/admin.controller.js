@@ -41,6 +41,16 @@ class AdminController {
         }
     }
 
+    async bulkUpdateConfigs(req, res) {
+        try {
+            const { configs } = req.body;
+            const results = await adminService.bulkUpdateConfigs(configs);
+            return res.json(results);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async uploadLogo(req, res) {
         try {
             if (!req.file) {

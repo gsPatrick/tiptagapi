@@ -118,10 +118,17 @@ class CatalogoService {
         }
 
         if (search) {
-            where[Op.or] = [
+            const isNumeric = !isNaN(search) && search.trim() !== "";
+            const searchOr = [
                 { descricao_curta: { [Op.iLike]: `%${search}%` } },
                 { codigo_etiqueta: { [Op.iLike]: `%${search}%` } }
             ];
+
+            if (isNumeric) {
+                searchOr.unshift({ id: parseInt(search) });
+            }
+
+            where[Op.or] = searchOr;
         }
 
         // Allow other exact filters if passed

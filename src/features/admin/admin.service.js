@@ -35,6 +35,19 @@ class AdminService {
         await config.update({ valor });
         return config;
     }
+
+    async bulkUpdateConfigs(configs) {
+        // configs is an array of { chave, valor } or an object { key: value }
+        // Let's support both but assume object for better FE DX
+        const entries = Array.isArray(configs) ? configs : Object.entries(configs).map(([chave, valor]) => ({ chave, valor }));
+
+        const results = [];
+        for (const { chave, valor } of entries) {
+            const result = await this.updateConfig(chave, valor);
+            results.push(result);
+        }
+        return results;
+    }
 }
 
 module.exports = new AdminService();

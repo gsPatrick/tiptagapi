@@ -10,6 +10,7 @@ router.post('/users', adminController.createUser);
 router.get('/users', adminController.getAllUsers);
 router.get('/configuracoes', adminController.getAllConfigs);
 router.put('/configuracoes/:chave', adminController.updateConfig);
+router.post('/configuracoes/bulk', adminController.bulkUpdateConfigs);
 
 const upload = require('../../middleware/upload.middleware');
 router.post('/configuracoes/upload-logo', upload.single('file'), adminController.uploadLogo);
