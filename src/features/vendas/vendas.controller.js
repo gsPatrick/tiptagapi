@@ -54,8 +54,8 @@ class VendasController {
     async atualizarStatusSacolinha(req, res) {
         try {
             const { id } = req.params;
-            const { status } = req.body;
-            const result = await vendasService.atualizarStatusSacolinha(parseInt(id), status);
+            const { status, codigo_rastreio } = req.body;
+            const result = await vendasService.atualizarStatusSacolinha(parseInt(id), status, codigo_rastreio);
             return res.json(result);
         } catch (err) {
             return res.status(400).json({ error: err.message });

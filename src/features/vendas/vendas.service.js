@@ -377,7 +377,7 @@ class VendasService {
         return sacolinha;
     }
 
-    async atualizarStatusSacolinha(id, novoStatus) {
+    async atualizarStatusSacolinha(id, novoStatus, codigo_rastreio = null) {
         const sacolinha = await Sacolinha.findByPk(id);
         if (!sacolinha) throw new Error('Sacolinha não encontrada');
 
@@ -386,7 +386,12 @@ class VendasService {
             throw new Error(`Status inválido: ${novoStatus}`);
         }
 
-        await sacolinha.update({ status: novoStatus });
+        const updateData = { status: novoStatus };
+        if (codigo_rastreio !== null) {
+            updateData.codigo_rastreio = codigo_rastreio;
+        }
+
+        await sacolinha.update(updateData);
         return sacolinha;
     }
 
