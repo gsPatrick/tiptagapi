@@ -450,14 +450,34 @@ class VendasService {
 
         const peca = await Peca.findByPk(pecaId);
         if (!peca) throw new Error('Peça não encontrada');
-        if (peca.sacolinhaId !== sacolinhaId) throw new Error('Peça não pertence a esta sacolinha');
+        if (peca.sacolinhaId !== parseInt(sacolinhaId)) throw new Error('Peça não pertence a esta sacolinha');
 
+        // Lógica de Re-unificação (Merge Back):
+        // Se a peça tem o sufixo -S{id}, tentamos devolver a quantidade para a peça original
+        const suffix = `-S${sacolinhaId}`;
+        if (peca.codigo_etiqueta && peca.codigo_etiqueta.endsWith(suffix)) {
+            const originalTag = peca.codigo_etiqueta.replace(suffix, '');
+            const pecaPai = await Peca.findOne({
+                where: {
+                    codigo_etiqueta: originalTag,
+                    status: { [Op.not]: 'VENDIDA' } // Tenta achar o lote original ainda ativo
+                }
+            });
+
+            if (pecaPai) {
+                await pecaPai.update({ quantidade: pecaPai.quantidade + peca.quantidade });
+                await peca.destroy(); // Remove a unidade desmembrada
+                return { message: 'Item devolvido ao lote original e removido da sacolinha' };
+            }
+        }
+
+        // Caso padrão (não era split ou não achou o pai): Apenas libera a peça
         await peca.update({
             sacolinhaId: null,
             status: 'DISPONIVEL'
         });
 
-        return { message: 'Peça removida da sacolinha' };
+        return { message: 'Peça removida da sacolinha e marcada como disponível' };
     }
 
     async getItensVendidos(search) {
