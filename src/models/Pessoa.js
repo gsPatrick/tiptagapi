@@ -77,6 +77,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.JSON,
             defaultValue: [],
         },
+        foto: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
     }, {
         sequelize,
         modelName: 'Pessoa',

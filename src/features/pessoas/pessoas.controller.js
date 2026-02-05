@@ -57,6 +57,25 @@ class PessoasController {
             return res.status(400).json({ error: error.message });
         }
     }
+
+    async uploadFoto(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+            const { id } = req.params;
+
+            // Construct full URL
+            const protocol = req.protocol;
+            const host = req.get('host');
+            const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+            const pessoa = await pessoasService.update(id, { foto: fileUrl });
+            return res.json(pessoa);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new PessoasController();
