@@ -15,6 +15,7 @@ class CronService {
         // Run every day at 00:00
         cron.schedule('0 0 * * *', async () => {
             console.log('Running Daily Cron Jobs...');
+            await this.autoFecharCaixas();
             await this.checkPecasParadas();
             await this.checkSacolinhasVencidas();
             await this.checkCreditosVencidos();
@@ -31,6 +32,17 @@ class CronService {
             console.log('Running Expiration Reminder Jobs...');
             await this.runExpirationReminder();
         });
+    }
+
+    async autoFecharCaixas() {
+        try {
+            const caixaService = require('../features/caixa/caixa.service');
+            console.log('[CRON] Verificando caixas abertos para fechamento automático...');
+            const results = await caixaService.fecharTodosCaixasAbertos();
+            console.log(`[CRON] Auto-fechamento concluído: ${results.length} caixas processados.`);
+        } catch (err) {
+            console.error('[CRON] Erro ao fechar caixas automaticamente:', err.message);
+        }
     }
 
     async checkCreditosVencidos() {
