@@ -117,6 +117,14 @@ class CatalogoService {
             where.status = status;
         }
 
+        // Date range filters for data_entrada
+        const { dataInicio, dataFim, ...exactFilters } = otherFilters;
+        if (dataInicio || dataFim) {
+            where.data_entrada = {};
+            if (dataInicio) where.data_entrada[Op.gte] = new Date(dataInicio);
+            if (dataFim) where.data_entrada[Op.lte] = new Date(dataFim);
+        }
+
         if (search) {
             const isNumeric = !isNaN(search) && search.trim() !== "";
             const searchOr = [
@@ -132,8 +140,8 @@ class CatalogoService {
         }
 
         // Allow other exact filters if passed
-        Object.keys(otherFilters).forEach(key => {
-            where[key] = otherFilters[key];
+        Object.keys(exactFilters).forEach(key => {
+            where[key] = exactFilters[key];
         });
 
         const queryOptions = {
