@@ -157,11 +157,19 @@ class CaixaService {
 
         if (!caixa) throw new Error('Caixa não encontrado.');
 
-        // Get sales made during this caixa's period (all salespeople)
+        const now = new Date();
+
+        // Get sales made during this caixa's period (from opening until now)
+        // Exclude future-dated sales (imported historical data with wrong dates)
         const vendas = await Pedido.findAll({
             where: {
-                data_pedido: { [Op.gte]: caixa.data_abertura },
-                status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
+                data_pedido: {
+                    [Op.gte]: caixa.data_abertura,
+                    [Op.lte]: now // Only sales up to now, not future
+                },
+                status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] },
+                // Exclude historical imports (codigo starts with HIST)
+                codigo_pedido: { [Op.notLike]: 'HIST%' }
             },
             include: [
                 { model: Pessoa, as: 'cliente', attributes: ['nome'] },
