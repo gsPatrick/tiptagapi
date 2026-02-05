@@ -394,6 +394,9 @@ class VendasService {
 
             if (!itemPedido) throw new Error('Venda não encontrada para esta peça');
 
+            const pedido = itemPedido.pedido;
+            if (!pedido) throw new Error('Pedido vinculado não encontrado');
+
             // Update Peca
             await peca.update({ status: 'DISPONIVEL' }, { transaction: t });
 
@@ -403,14 +406,14 @@ class VendasService {
                 userId,
                 tipo: 'ENTRADA_DEVOLUCAO',
                 quantidade: 1,
-                motivo: `Devolução Venda ${itemPedido.pedido.codigo_pedido}`,
+                motivo: `Devolução Venda ${pedido.codigo_pedido}`,
                 data_movimento: new Date()
             }, { transaction: t });
 
             // Generate Credit for Client
-            if (itemPedido.pedido.clienteId) {
+            if (pedido.clienteId) {
                 await CreditoLoja.create({
-                    clienteId: itemPedido.pedido.clienteId,
+                    clienteId: pedido.clienteId,
                     valor: itemPedido.valor_unitario_final,
                     data_validade: addMonths(new Date(), 6),
                     status: 'ATIVO',

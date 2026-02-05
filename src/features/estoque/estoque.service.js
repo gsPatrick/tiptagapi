@@ -61,6 +61,14 @@ class EstoqueService {
 
         return resultado;
     }
+
+    async getHistory(pecaId) {
+        return await MovimentacaoEstoque.findAll({
+            where: { pecaId },
+            order: [['createdAt', 'DESC']],
+            include: [{ model: Peca, as: 'peca' }]
+        });
+    }
 }
 
 module.exports = new EstoqueService();
