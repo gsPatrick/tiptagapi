@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
             references: { model: 'pessoas', key: 'id' },
         },
         status: {
-            type: DataTypes.ENUM('ABERTA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'),
+            type: DataTypes.ENUM('ABERTA', 'PRONTA', 'ENVIADA', 'FECHADA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'),
             defaultValue: 'ABERTA',
         },
         data_abertura: {

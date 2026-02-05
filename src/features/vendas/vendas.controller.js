@@ -50,6 +50,48 @@ class VendasController {
         }
     }
 
+    async getSacolinhaById(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await vendasService.getSacolinhaById(parseInt(id));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async atualizarStatusSacolinha(req, res) {
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+            const result = await vendasService.atualizarStatusSacolinha(parseInt(id), status);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async adicionarItemSacolinha(req, res) {
+        try {
+            const { id } = req.params;
+            const { pecaId } = req.body;
+            const result = await vendasService.adicionarItemSacolinha(parseInt(id), parseInt(pecaId));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async removerItemSacolinha(req, res) {
+        try {
+            const { id, pecaId } = req.params;
+            const result = await vendasService.removerItemSacolinha(parseInt(id), parseInt(pecaId));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async getItensVendidos(req, res) {
         try {
             const { search } = req.query;

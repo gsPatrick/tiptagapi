@@ -369,6 +369,73 @@ class VendasService {
         });
     }
 
+    async getSacolinhaById(id) {
+        const sacolinha = await Sacolinha.findByPk(id, {
+            include: [
+                { model: Pessoa, as: 'cliente' },
+                {
+                    model: Peca,
+                    as: 'itens',
+                    include: [
+                        { model: sequelize.models.Tamanho, as: 'tamanho' },
+                        { model: sequelize.models.Cor, as: 'cor' },
+                        { model: Pessoa, as: 'fornecedor' }
+                    ]
+                }
+            ]
+        });
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        return sacolinha;
+    }
+
+    async atualizarStatusSacolinha(id, novoStatus) {
+        const sacolinha = await Sacolinha.findByPk(id);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+
+        const statusValidos = ['ABERTA', 'PRONTA', 'ENVIADA', 'FECHADA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'];
+        if (!statusValidos.includes(novoStatus)) {
+            throw new Error(`Status inválido: ${novoStatus}`);
+        }
+
+        await sacolinha.update({ status: novoStatus });
+        return sacolinha;
+    }
+
+    async adicionarItemSacolinha(sacolinhaId, pecaId) {
+        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível adicionar itens em sacolinhas abertas');
+
+        const peca = await Peca.findByPk(pecaId);
+        if (!peca) throw new Error('Peça não encontrada');
+        if (peca.status !== 'DISPONIVEL') throw new Error('Peça não está disponível');
+
+        // Associate peca with sacolinha
+        await peca.update({
+            sacolinhaId: sacolinhaId,
+            status: 'RESERVADA'
+        });
+
+        return { message: 'Peça adicionada à sacolinha', peca };
+    }
+
+    async removerItemSacolinha(sacolinhaId, pecaId) {
+        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível remover itens de sacolinhas abertas');
+
+        const peca = await Peca.findByPk(pecaId);
+        if (!peca) throw new Error('Peça não encontrada');
+        if (peca.sacolinhaId !== sacolinhaId) throw new Error('Peça não pertence a esta sacolinha');
+
+        await peca.update({
+            sacolinhaId: null,
+            status: 'DISPONIVEL'
+        });
+
+        return { message: 'Peça removida da sacolinha' };
+    }
+
     async getItensVendidos(search) {
         const wherePeca = { status: 'VENDIDA' };
 
