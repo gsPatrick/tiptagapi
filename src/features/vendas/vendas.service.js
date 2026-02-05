@@ -332,10 +332,25 @@ class VendasService {
 
     async getSacolinhas(filters = {}) {
         const where = {};
-        if (filters.status && filters.status !== 'all') where.status = filters.status.toUpperCase();
-        if (filters.search) {
-            // Assuming search by client name. Need to include Pessoa and filter.
-            // Complex query or just filter by client name if included.
+
+        // Map frontend filter values to valid ENUM values
+        if (filters.status && filters.status !== 'all') {
+            const statusMap = {
+                'aberta': 'ABERTA',
+                'fechada': 'FECHADA_VIRAR_PEDIDO',
+                'cancelada': 'CANCELADA',
+                // These don't exist in the current ENUM, return empty if used
+                'pronta': null,
+                'enviada': null
+            };
+            const mappedStatus = statusMap[filters.status.toLowerCase()];
+            if (mappedStatus) {
+                where.status = mappedStatus;
+            } else if (filters.status.toLowerCase() !== 'pronta' && filters.status.toLowerCase() !== 'enviada') {
+                // If not a known status to skip, try uppercase
+                where.status = filters.status.toUpperCase();
+            }
+            // If pronta or enviada, just don't filter by status (show all) since ENUM doesn't have them
         }
 
         return await Sacolinha.findAll({
@@ -348,7 +363,7 @@ class VendasService {
                         nome: { [Op.like]: `%${filters.search}%` }
                     } : undefined
                 },
-                { model: Peca, as: 'itens' } // Assuming association exists
+                { model: Peca, as: 'itens' }
             ],
             order: [['createdAt', 'DESC']]
         });
