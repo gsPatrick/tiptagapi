@@ -227,6 +227,27 @@ class CatalogoService {
             }
         }
 
+        // --- Auto-Status Logic based on Stock ---
+        // Rule: If stock > 0, Product cannot be 'VENDIDA'. It must be 'DISPONIVEL' (or 'NOVA').
+        // If stock increases (restock), force status to 'DISPONIVEL' if it was 'VENDIDA'.
+        let newQtd = peca.quantidade;
+        if (data.quantidade !== undefined && data.quantidade !== null) {
+            newQtd = parseInt(data.quantidade);
+        } else if (data.stock !== undefined && data.stock !== null) {
+            newQtd = parseInt(data.stock);
+        }
+
+        const currentStatus = peca.status;
+        const targetStatus = data.status || currentStatus;
+
+        if (newQtd > 0) {
+            if (targetStatus === 'VENDIDA') {
+                // If trying to set VENDIDA or currently VENDIDA, force to DISPONIVEL
+                data.status = 'DISPONIVEL';
+            }
+        }
+        // ----------------------------------------
+
         await peca.update(data);
 
         const updatedPeca = await this.getPecaById(id);
