@@ -22,7 +22,10 @@ class CatalogoController {
 
     async getPecaById(req, res) {
         try {
-            const peca = await catalogoService.getPecaById(req.params.id);
+            const { id } = req.params;
+            if (id === 'expirando') return this.getExpiringPecas(req, res);
+            if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+            const peca = await catalogoService.getPecaById(id);
             if (!peca) return res.status(404).json({ error: 'Peca not found' });
             return res.json(peca);
         } catch (err) {
