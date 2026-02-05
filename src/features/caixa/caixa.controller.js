@@ -22,6 +22,16 @@ class CaixaController {
         }
     }
 
+    async suprimento(req, res) {
+        try {
+            const { valor, descricao } = req.body;
+            const result = await caixaService.realizarSuprimento(req.userId, valor, descricao);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async fechar(req, res) {
         try {
             const { saldo_final } = req.body;

@@ -7,6 +7,7 @@ router.use(authMiddleware);
 
 router.post('/abrir', caixaController.abrir);
 router.post('/sangria', caixaController.sangria);
+router.post('/suprimento', caixaController.suprimento);
 router.post('/fechar', caixaController.fechar);
 router.get('/status', caixaController.status);
 
