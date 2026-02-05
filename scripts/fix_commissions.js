@@ -94,11 +94,32 @@ async function fixCommissions() {
                 console.log(`   - Current Credit: ${currentCredit} (approx ${(currentCredit / grossPrice * 100).toFixed(0)}%)`);
                 console.log(`   - New Credit:     ${correctCommission.toFixed(2)} (50%)`);
 
+                // 1. Update Credit
                 await credit.update({
                     valor: correctCommission
                 }, { transaction: t });
 
+                // 2. Update Peca Fields (For Reports/Dashboard)
+                // Dashboard uses 'valor_liquido_fornecedor' and 'valor_comissao_loja'
+                const valorComissaoLoja = netPrice - correctCommission;
+                await peca.update({
+                    valor_liquido_fornecedor: correctCommission,
+                    valor_comissao_loja: valorComissaoLoja
+                }, { transaction: t });
+
                 updatedCount++;
+            } else {
+                // Check if Peca fields are consistent even if Credit is OK
+                const currentLiq = parseFloat(peca.valor_liquido_fornecedor || 0);
+                if (Math.abs(currentLiq - correctCommission) > 0.02) {
+                    const valorComissaoLoja = netPrice - correctCommission;
+                    await peca.update({
+                        valor_liquido_fornecedor: correctCommission,
+                        valor_comissao_loja: valorComissaoLoja
+                    }, { transaction: t });
+                    console.log(`[FIX] Peca ${peca.codigo_etiqueta} fields updated (Credit was OK).`);
+                    updatedCount++;
+                }
             }
         }
 
