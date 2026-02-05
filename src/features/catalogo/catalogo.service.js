@@ -228,8 +228,6 @@ class CatalogoService {
         }
 
         // --- Auto-Status Logic based on Stock ---
-        // Rule: If stock > 0, Product cannot be 'VENDIDA'. It must be 'DISPONIVEL' (or 'NOVA').
-        // If stock increases (restock), force status to 'DISPONIVEL' if it was 'VENDIDA'.
         let newQtd = peca.quantidade;
         if (data.quantidade !== undefined && data.quantidade !== null) {
             newQtd = parseInt(data.quantidade);
@@ -237,13 +235,17 @@ class CatalogoService {
             newQtd = parseInt(data.stock);
         }
 
-        const currentStatus = peca.status;
-        const targetStatus = data.status || currentStatus;
-
         if (newQtd > 0) {
-            if (targetStatus === 'VENDIDA') {
-                // If trying to set VENDIDA or currently VENDIDA, force to DISPONIVEL
+            const currentStatus = peca.status;
+            const targetStatus = data.status || currentStatus;
+
+            // If it was in a "final" status or zero-stock status, and we are adding stock
+            // without explicitly setting a new status, we force it back to DISPONIVEL.
+            const resetStatuses = ['VENDIDA', 'EXTRAVIADA', 'DOADA', 'DEVOLVIDA_FORNECEDOR', 'RESERVADA_SACOLINHA'];
+            if (resetStatuses.includes(targetStatus) && !data.status) {
                 data.status = 'DISPONIVEL';
+                // Also clear sacolinha association if it was reserved
+                data.sacolinhaId = null;
             }
         }
         // ----------------------------------------

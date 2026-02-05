@@ -20,16 +20,7 @@ class VendasController {
         }
     }
 
-    async addItemSacolinha(req, res) {
-        try {
-            const { id } = req.params;
-            const { pecaId } = req.body;
-            const result = await vendasService.adicionarItemSacolinha(id, pecaId);
-            return res.json(result);
-        } catch (err) {
-            return res.status(400).json({ error: err.message });
-        }
-    }
+
 
     async fecharSacolinha(req, res) {
         try {

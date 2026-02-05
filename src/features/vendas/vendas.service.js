@@ -312,16 +312,7 @@ class VendasService {
         });
     }
 
-    async adicionarItemSacolinha(sacolinhaId, pecaId) {
-        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
-        if (!sacolinha) throw new Error('Sacolinha not found');
 
-        const peca = await Peca.findByPk(pecaId);
-        if (!peca || !['DISPONIVEL', 'A_VENDA'].includes(peca.status)) throw new Error('Peça indisponível');
-
-        await peca.update({ status: 'RESERVADA_SACOLINHA' });
-        return sacolinha;
-    }
 
     async fecharSacolinha(sacolinhaId) {
         const sacolinha = await Sacolinha.findByPk(sacolinhaId);
@@ -408,15 +399,48 @@ class VendasService {
 
         const peca = await Peca.findByPk(pecaId);
         if (!peca) throw new Error('Peça não encontrada');
-        if (peca.status !== 'DISPONIVEL') throw new Error('Peça não está disponível');
 
-        // Associate peca with sacolinha
-        await peca.update({
-            sacolinhaId: sacolinhaId,
-            status: 'RESERVADA'
-        });
+        // Se a peça já está reservada para outra sacolinha, não pode adicionar
+        if (peca.status === 'RESERVADA_SACOLINHA' && peca.sacolinhaId !== parseInt(sacolinhaId)) {
+            throw new Error('Esta peça já está reservada em outra sacolinha');
+        }
 
-        return { message: 'Peça adicionada à sacolinha', peca };
+        if (peca.status === 'VENDIDA') throw new Error('Peça já foi vendida');
+
+        if (peca.quantidade > 1) {
+            // Lógica de desmembramento (Split): Se tem mais de 1, tira 1 do estoque e cria um registro para a sacolinha
+            await peca.update({ quantidade: peca.quantidade - 1 });
+
+            const plainPeca = peca.get({ plain: true });
+            delete plainPeca.id;
+            delete plainPeca.uuid;
+            delete plainPeca.createdAt;
+            delete plainPeca.updatedAt;
+
+            const novaUnidadeData = {
+                ...plainPeca,
+                quantidade: 1,
+                quantidade_inicial: 1,
+                status: 'RESERVADA_SACOLINHA',
+                sacolinhaId: sacolinhaId
+            };
+
+            // Ajusta o código de etiqueta para evitar erro de UNIQUE no banco
+            if (novaUnidadeData.codigo_etiqueta) {
+                novaUnidadeData.codigo_etiqueta = `${novaUnidadeData.codigo_etiqueta}-S${sacolinhaId}`;
+            }
+
+            const novaUnidade = await Peca.create(novaUnidadeData);
+            return { message: 'Unidade adicionada à sacolinha', peca: novaUnidade };
+        } else {
+            // Lógica padrão: apenas muda o status e associa
+            await peca.update({
+                sacolinhaId: sacolinhaId,
+                status: 'RESERVADA_SACOLINHA'
+            });
+
+            return { message: 'Peça adicionada à sacolinha', peca };
+        }
     }
 
     async removerItemSacolinha(sacolinhaId, pecaId) {
