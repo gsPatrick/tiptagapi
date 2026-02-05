@@ -63,7 +63,7 @@ class VendasController {
     async processarDevolucao(req, res) {
         try {
             const { pecaId } = req.body;
-            const userId = req.user.id;
+            const userId = req.userId; // Fixed: use req.userId from auth middleware
             const result = await vendasService.processarDevolucao(pecaId, userId);
             return res.json(result);
         } catch (err) {
