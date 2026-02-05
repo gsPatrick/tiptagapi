@@ -344,9 +344,19 @@ class FinanceiroService {
         const { CaixaDiario, User } = require('../../models');
         const whereClause = {};
 
-        if (inicio && fim) {
-            const startDate = startOfDay(new Date(inicio));
-            const endDate = endOfDay(new Date(fim));
+        // Only apply date filter if both dates are valid non-empty strings
+        if (inicio && fim && inicio.trim() !== '' && fim.trim() !== '') {
+            // Parse dates explicitly to avoid timezone issues
+            // Input format: YYYY-MM-DD
+            const [startYear, startMonth, startDay] = inicio.split('-').map(Number);
+            const [endYear, endMonth, endDay] = fim.split('-').map(Number);
+
+            // Create dates in local timezone
+            const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+            const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
+
+            console.log(`[getFechamentos] Filtering: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
             whereClause.data_abertura = { [Op.between]: [startDate, endDate] };
         }
 
@@ -355,6 +365,8 @@ class FinanceiroService {
             include: [{ model: User, as: 'operador', attributes: ['nome'] }],
             order: [['data_abertura', 'DESC']]
         });
+
+        console.log(`[getFechamentos] Found ${caixas.length} records`);
 
         return caixas.map(c => ({
             id: c.id,
