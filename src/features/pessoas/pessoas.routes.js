@@ -15,4 +15,9 @@ router.delete('/:id', pessoasController.delete);
 router.get('/:id/saldo-permuta', pessoasController.getSaldoPermuta);
 router.post('/:id/foto', upload.single('foto'), pessoasController.uploadFoto);
 
+// Contratos
+router.post('/:id/contratos', upload.single('contrato'), pessoasController.addContrato);
+router.put('/contratos/:contratoId', pessoasController.updateContrato);
+router.delete('/contratos/:contratoId', pessoasController.deleteContrato);
+
 module.exports = router;

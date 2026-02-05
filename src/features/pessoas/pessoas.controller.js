@@ -76,6 +76,50 @@ class PessoasController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+    // Contracts
+    async addContrato(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+            }
+            const { id } = req.params;
+            const { nome_exibicao } = req.body;
+
+            const fileData = {
+                nome_exibicao: nome_exibicao || req.file.originalname,
+                nome_arquivo: req.file.originalname,
+                caminho: req.file.path,
+                mimetype: req.file.mimetype,
+                tamanho: req.file.size
+            };
+
+            const contrato = await pessoasService.addContrato(id, fileData);
+            return res.status(201).json(contrato);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async updateContrato(req, res) {
+        try {
+            const { contratoId } = req.params;
+            const contrato = await pessoasService.updateContrato(contratoId, req.body);
+            return res.json(contrato);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async deleteContrato(req, res) {
+        try {
+            const { contratoId } = req.params;
+            const result = await pessoasService.deleteContrato(contratoId);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new PessoasController();

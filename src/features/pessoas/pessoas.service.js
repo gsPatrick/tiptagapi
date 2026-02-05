@@ -1,5 +1,7 @@
-const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido } = require('../../models');
+const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido, ContratoPessoa } = require('../../models');
 const { Op } = require('sequelize');
+const fs = require('fs');
+const path = require('path');
 
 class PessoasService {
     async create(data) {
@@ -54,7 +56,7 @@ class PessoasService {
         if (simple === 'true' || simple === true) {
             queryOptions.attributes = ['id', 'nome'];
         } else {
-            queryOptions.include = ['endereco', 'contasBancarias', 'perfilComportamental'];
+            queryOptions.include = ['endereco', 'contasBancarias', 'perfilComportamental', 'contratos'];
         }
 
         try {
@@ -91,7 +93,7 @@ class PessoasService {
 
     async getById(id) {
         return await Pessoa.findByPk(id, {
-            include: ['endereco', 'contasBancarias', 'perfilComportamental'],
+            include: ['endereco', 'contasBancarias', 'perfilComportamental', 'contratos'],
         });
     }
 
@@ -182,6 +184,35 @@ class PessoasService {
             proximoVencimento: nextExpiration,
             historico
         };
+    }
+
+    // Contracts
+    async addContrato(pessoaId, fileData) {
+        return await ContratoPessoa.create({
+            pessoaId,
+            ...fileData
+        });
+    }
+
+    async updateContrato(contratoId, data) {
+        const contrato = await ContratoPessoa.findByPk(contratoId);
+        if (!contrato) throw new Error('Contrato not found');
+        await contrato.update(data);
+        return contrato;
+    }
+
+    async deleteContrato(contratoId) {
+        const contrato = await ContratoPessoa.findByPk(contratoId);
+        if (!contrato) throw new Error('Contrato not found');
+
+        // Delete file from disk
+        const filePath = contrato.caminho;
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+
+        await contrato.destroy();
+        return { message: 'Contrato deleted successfully' };
     }
 }
 

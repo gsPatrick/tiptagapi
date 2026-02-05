@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             Pessoa.hasOne(models.PerfilComportamental, { foreignKey: 'pessoaId', as: 'perfilComportamental' });
             Pessoa.hasMany(models.ContaCorrentePessoa, { foreignKey: 'pessoaId', as: 'movimentacoesConta' });
             Pessoa.hasMany(models.CreditoLoja, { foreignKey: 'clienteId', as: 'creditos' });
+            Pessoa.hasMany(models.ContratoPessoa, { foreignKey: 'pessoaId', as: 'contratos' });
         }
     }
     Pessoa.init({
