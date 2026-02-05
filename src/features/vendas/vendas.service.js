@@ -399,8 +399,11 @@ class VendasService {
             const pedido = itemPedido.pedido;
             if (!pedido) throw new Error('Pedido vinculado não encontrado');
 
-            // Update Peca
-            await peca.update({ status: 'DISPONIVEL' }, { transaction: t });
+            // Update Peca - return to stock
+            await peca.update({
+                status: 'DISPONIVEL',
+                quantidade: (peca.quantidade || 0) + 1
+            }, { transaction: t });
 
             // Create Stock Movement
             await MovimentacaoEstoque.create({
@@ -412,7 +415,7 @@ class VendasService {
                 data_movimento: new Date()
             }, { transaction: t });
 
-            // Generate Credit for Client
+            // Generate Credit for Client (Refund as Store Credit)
             if (pedido.clienteId) {
                 await CreditoLoja.create({
                     clienteId: pedido.clienteId,
@@ -422,6 +425,38 @@ class VendasService {
                     codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
                 }, { transaction: t });
             }
+
+            // --- REVERSE SUPPLIER COMMISSION (Consignment Items) ---
+            if (peca.tipo_aquisicao === 'CONSIGNACAO' && peca.fornecedorId) {
+                // Find the original credit entry
+                const creditoOriginal = await ContaCorrentePessoa.findOne({
+                    where: {
+                        pessoaId: peca.fornecedorId,
+                        tipo: 'CREDITO',
+                        referencia_origem: peca.id, // pecaId
+                        descricao: { [Op.like]: '%Venda peça%' }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction: t
+                });
+
+                if (creditoOriginal) {
+                    const valorEstorno = parseFloat(creditoOriginal.valor);
+
+                    // Create DEBIT to reverse the commission
+                    await ContaCorrentePessoa.create({
+                        pessoaId: peca.fornecedorId,
+                        tipo: 'DEBITO',
+                        valor: valorEstorno,
+                        descricao: `Estorno devolução peça ${peca.codigo_etiqueta}`,
+                        referencia_origem: peca.id,
+                        data_movimento: new Date()
+                    }, { transaction: t });
+
+                    console.log(`[DEVOLUCAO] Estornado R$ ${valorEstorno} do fornecedor ID ${peca.fornecedorId}`);
+                }
+            }
+            // ---------------------------------------------------------
 
             await t.commit();
             return { message: 'Devolução processada com sucesso' };
