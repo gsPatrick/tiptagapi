@@ -324,6 +324,10 @@ class VendasService {
     async getSacolinhas(filters = {}) {
         const where = {};
 
+        if (filters.clienteId) {
+            where.clienteId = filters.clienteId;
+        }
+
         // Map frontend filter values to valid ENUM values
         if (filters.status && filters.status !== 'all') {
             const statusMap = {
