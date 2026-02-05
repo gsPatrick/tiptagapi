@@ -157,15 +157,15 @@ class CaixaService {
 
         if (!caixa) throw new Error('Caixa não encontrado.');
 
-        // Get sales made during this caixa's period by this user
+        // Get sales made during this caixa's period (all salespeople)
         const vendas = await Pedido.findAll({
             where: {
-                vendedorId: caixa.userId,
                 data_pedido: { [Op.gte]: caixa.data_abertura },
                 status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
             },
             include: [
                 { model: Pessoa, as: 'cliente', attributes: ['nome'] },
+                { model: User, as: 'vendedor', attributes: ['id', 'nome'] },
                 { model: PagamentoPedido, as: 'pagamentos' }
             ],
             order: [['data_pedido', 'DESC']]
@@ -228,6 +228,7 @@ class CaixaService {
                 codigo: v.codigo_pedido,
                 data: new Date(v.data_pedido).toLocaleString('pt-BR'),
                 cliente: v.cliente ? v.cliente.nome : 'CONSUMIDOR FINAL',
+                vendedor: v.vendedor ? v.vendedor.nome : 'LOJA',
                 total: parseFloat(v.total || 0),
                 pagamentos: v.pagamentos ? v.pagamentos.map(p => ({
                     metodo: p.metodo,
