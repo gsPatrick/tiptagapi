@@ -20,6 +20,26 @@ class AdminController {
         }
     }
 
+    async updateUser(req, res) {
+        try {
+            const { id } = req.params;
+            const user = await adminService.updateUser(id, req.body);
+            return res.json(user);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async deleteUser(req, res) {
+        try {
+            const { id } = req.params;
+            await adminService.deleteUser(id);
+            return res.json({ message: 'Usuário excluído com sucesso.' });
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     // Configs
     async getAllConfigs(req, res) {
         try {

@@ -21,6 +21,13 @@ class AdminService {
         return user;
     }
 
+    async deleteUser(id) {
+        const user = await User.findByPk(id);
+        if (!user) throw new Error('User not found');
+        await user.destroy();
+        return true;
+    }
+
     // Configurations
     async getAllConfigs() {
         return await Configuracao.findAll();

@@ -8,6 +8,8 @@ router.use(authMiddleware);
 
 router.post('/users', adminController.createUser);
 router.get('/users', adminController.getAllUsers);
+router.put('/users/:id', adminController.updateUser);
+router.delete('/users/:id', adminController.deleteUser);
 router.get('/configuracoes', adminController.getAllConfigs);
 router.put('/configuracoes/:chave', adminController.updateConfig);
 router.post('/configuracoes/bulk', adminController.bulkUpdateConfigs);
