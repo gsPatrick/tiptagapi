@@ -9,7 +9,6 @@ async function fixCommissions() {
         console.log("Starting Commission Fix Script...");
 
         // 1. Find all CREDIT transactions related to Sales (Consignment)
-        // We filter by description "Venda peça%" to target sales credits.
         const credits = await ContaCorrentePessoa.findAll({
             where: {
                 tipo: 'CREDITO',
@@ -36,8 +35,6 @@ async function fixCommissions() {
             }
 
             // 3. Find the Sale (ItemPedido -> Pedido)
-            // We need the Pedido to see if there was a Discount.
-            // We order by createdAt DESC to match the latest sale of this item (in case of re-stock/re-sell, though rare for same ID).
             const itemPedido = await ItemPedido.findOne({
                 where: { pecaId },
                 order: [['createdAt', 'DESC']],
@@ -46,45 +43,31 @@ async function fixCommissions() {
             });
 
             if (!itemPedido || !itemPedido.pedido) {
-                console.warn(`[WARN] No sale found for Credit ID ${credit.id} (Peca ${pecaId})`);
+                // console.warn(`[WARN] No sale found for Credit ID ${credit.id}`);
                 continue;
             }
 
             const pedido = itemPedido.pedido;
 
             // 4. Calculate Net Price
-            // Current Item Price in DB (Gross usually, unless fixed recently)
             const grossPrice = parseFloat(itemPedido.valor_unitario_final);
-
-            // Calculate Discount Ratio from Order
-            const subtotal = parseFloat(pedido.subtotal || pedido.total); // Fallback if subtotal 0
+            const subtotal = parseFloat(pedido.subtotal || pedido.total);
             const total = parseFloat(pedido.total);
-            const discountVal = parseFloat(pedido.desconto || 0);
 
-            // Logic: Ratio = Total / (Total + Discount) ?? 
-            // Better: Ratio = Total / Subtotal.
-            // If Subtotal is 0 or null, assume Ratio 1.
+            // Ratio of Pay / Subtotal
             let ratio = 1;
             if (subtotal > 0) {
                 ratio = total / subtotal;
             }
-            // If discount exists but subtotal match total? (Frontend bug?). 
-            // Let's rely on (Total Paid / Sum of Items).
-            // But ItemPedido sum might differ from Pedido Subtotal if freight involved?
-            // Safer: NetPrice = grossPrice * ratio.
-
-            // Edge case: ratio > 1? (Interest?). Cap at 1?
             if (ratio > 1) ratio = 1;
 
             const netPrice = grossPrice * ratio;
 
             // 5. Calculate Correct Commission (Strict 50%)
-            // Rule: 50% of Net Price.
             const correctCommission = (netPrice * 50) / 100;
 
             // 6. Compare with Current Credit
             const currentCredit = parseFloat(credit.valor);
-
             const diff = Math.abs(currentCredit - correctCommission);
 
             // Tolerance 0.02 (rounding)
@@ -94,13 +77,12 @@ async function fixCommissions() {
                 console.log(`   - Current Credit: ${currentCredit} (approx ${(currentCredit / grossPrice * 100).toFixed(0)}%)`);
                 console.log(`   - New Credit:     ${correctCommission.toFixed(2)} (50%)`);
 
-                // 1. Update Credit
+                // A. Update Credit
                 await credit.update({
                     valor: correctCommission
                 }, { transaction: t });
 
-                // 2. Update Peca Fields (For Reports/Dashboard)
-                // Dashboard uses 'valor_liquido_fornecedor' and 'valor_comissao_loja'
+                // B. Update Peca Fields (For Report Consistency)
                 const valorComissaoLoja = netPrice - correctCommission;
                 await peca.update({
                     valor_liquido_fornecedor: correctCommission,
@@ -110,6 +92,7 @@ async function fixCommissions() {
                 updatedCount++;
             } else {
                 // Check if Peca fields are consistent even if Credit is OK
+                // This fixes the dashboard issue
                 const currentLiq = parseFloat(peca.valor_liquido_fornecedor || 0);
                 if (Math.abs(currentLiq - correctCommission) > 0.02) {
                     const valorComissaoLoja = netPrice - correctCommission;
@@ -125,6 +108,23 @@ async function fixCommissions() {
 
         await t.commit();
         console.log(`SUCCESS. Updated ${updatedCount} commission records.`);
+
+        // --- VALIDATION FOR USER 106 (Aline) ---
+        // Let's print her total balance
+        const alineCredits = await ContaCorrentePessoa.sum('valor', {
+            where: {
+                pessoaId: 106,
+                tipo: 'CREDITO'
+            }
+        }) || 0;
+        const alineDebits = await ContaCorrentePessoa.sum('valor', {
+            where: {
+                pessoaId: 106,
+                tipo: 'DEBITO'
+            }
+        }) || 0;
+        console.log(`[INFO] Saldo Atual Aline Cruz (ID 106): R$ ${(alineCredits - alineDebits).toFixed(2)}`);
+
         process.exit(0);
 
     } catch (err) {
