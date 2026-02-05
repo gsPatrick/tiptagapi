@@ -91,7 +91,9 @@ class VendasService {
 
                 if (peca.tipo_aquisicao === 'CONSIGNACAO' && peca.fornecedorId) {
                     const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
-                    const comissaoPercent = fornecedor.comissao_padrao || 50;
+
+                    // FORCED RULE: Consignment is always 50%
+                    const comissaoPercent = 50;
                     const valorCredito = (valorVenda * comissaoPercent) / 100;
 
                     await ContaCorrentePessoa.create({
