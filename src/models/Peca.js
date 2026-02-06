@@ -58,7 +58,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         status: {
             type: DataTypes.ENUM('NOVA', 'EM_AUTORIZACAO', 'DISPONIVEL', 'RESERVADA_SACOLINHA', 'RESERVADA_ECOMMERCE', 'VENDIDA', 'DEVOLVIDA_FORNECEDOR', 'DOADA', 'EXTRAVIADA'),
-            defaultValue: 'NOVA',
+            defaultValue: 'DISPONIVEL',
         },
         quantidade: {
             type: DataTypes.INTEGER,
