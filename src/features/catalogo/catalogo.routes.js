@@ -8,12 +8,13 @@ router.use(authMiddleware);
 
 router.post('/upload', upload.single('file'), catalogoController.uploadImage);
 
-router.post('/pecas', catalogoController.createPeca);
-router.post('/pecas/:id/sync', catalogoController.syncPeca);
+router.get('/pecas/expirando', catalogoController.getExpiringPecas);
 router.get('/pecas', catalogoController.getAllPecas);
+router.post('/pecas', catalogoController.createPeca);
 router.get('/pecas/:id', catalogoController.getPecaById);
 router.put('/pecas/:id', catalogoController.updatePeca);
 router.delete('/pecas/:id', catalogoController.deletePeca);
+router.post('/pecas/:id/sync', catalogoController.syncPeca);
 router.get('/marcas', catalogoController.getAllMarcas);
 router.post('/etiquetas', catalogoController.generateEtiquetas);
 

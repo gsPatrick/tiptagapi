@@ -107,11 +107,26 @@ class CatalogoService {
             where.status = status;
         }
 
+        // Date range filters for data_entrada
+        const { dataInicio, dataFim, ...exactFilters } = otherFilters;
+        if (dataInicio || dataFim) {
+            where.data_entrada = {};
+            if (dataInicio) where.data_entrada[Op.gte] = new Date(dataInicio);
+            if (dataFim) where.data_entrada[Op.lte] = new Date(dataFim);
+        }
+
         if (search) {
-            where[Op.or] = [
+            const isNumeric = !isNaN(search) && search.trim() !== "";
+            const searchOr = [
                 { descricao_curta: { [Op.iLike]: `%${search}%` } },
                 { codigo_etiqueta: { [Op.iLike]: `%${search}%` } }
             ];
+
+            if (isNumeric) {
+                searchOr.unshift({ id: parseInt(search) });
+            }
+
+            where[Op.or] = searchOr;
         }
 
         // Allow other exact filters if passed
@@ -306,6 +321,27 @@ class CatalogoService {
     async getAllMarcas() {
         return await Marca.findAll({
             order: [['nome', 'ASC']]
+        });
+    }
+
+    async getExpiringPecas(days = 60) {
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() - days);
+
+        return await Peca.findAll({
+            where: {
+                tipo_aquisicao: 'CONSIGNACAO',
+                status: 'DISPONIVEL',
+                data_entrada: {
+                    [Op.lt]: expirationDate
+                }
+            },
+            include: [
+                { model: Pessoa, as: 'fornecedor', attributes: ['id', 'nome', 'telefone_whatsapp'] },
+                { model: Tamanho, as: 'tamanho' },
+                { model: Cor, as: 'cor' },
+            ],
+            order: [['data_entrada', 'ASC']]
         });
     }
 }

@@ -1,5 +1,7 @@
-const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido } = require('../../models');
+const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido, ContratoPessoa } = require('../../models');
 const { Op } = require('sequelize');
+const fs = require('fs');
+const path = require('path');
 
 class PessoasService {
     async create(data) {
@@ -51,7 +53,7 @@ class PessoasService {
 
     async getById(id) {
         return await Pessoa.findByPk(id, {
-            include: ['endereco', 'contasBancarias', 'perfilComportamental'],
+            include: ['endereco', 'contasBancarias', 'perfilComportamental', 'contratos'],
         });
     }
 
@@ -86,6 +88,9 @@ class PessoasService {
     }
 
     async getSaldoPermuta(pessoaId) {
+        const { ContaCorrentePessoa } = require('../../models');
+
+        // 1. CreditoLoja (Store Vouchers for CLIENTS)
         const creditos = await CreditoLoja.findAll({
             where: {
                 clienteId: pessoaId,
@@ -96,8 +101,21 @@ class PessoasService {
             order: [['data_validade', 'ASC']]
         });
 
-        const total = creditos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
+        const totalCreditoLoja = creditos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
         const nextExpiration = creditos.length > 0 ? creditos[0].data_validade : null;
+
+        // 2. ContaCorrentePessoa (Supplier Commissions for FORNECEDORES)
+        // This allows suppliers to use their commission balance for purchases (PERMUTA)
+        const contaCredits = await ContaCorrentePessoa.sum('valor', {
+            where: { pessoaId, tipo: 'CREDITO' }
+        }) || 0;
+        const contaDebits = await ContaCorrentePessoa.sum('valor', {
+            where: { pessoaId, tipo: 'DEBITO' }
+        }) || 0;
+        const saldoContaCorrente = contaCredits - contaDebits;
+
+        // Combined Saldo = CreditoLoja + ContaCorrentePessoa
+        const saldoTotal = totalCreditoLoja + Math.max(0, saldoContaCorrente);
 
         // History: Usage
         const usos = await PagamentoPedido.findAll({
@@ -120,10 +138,41 @@ class PessoasService {
         }));
 
         return {
-            saldo: total,
+            saldo: saldoTotal,
+            saldoCreditoLoja: totalCreditoLoja,
+            saldoContaCorrente: Math.max(0, saldoContaCorrente),
             proximoVencimento: nextExpiration,
             historico
         };
+    }
+
+    // Contracts
+    async addContrato(pessoaId, fileData) {
+        return await ContratoPessoa.create({
+            pessoaId,
+            ...fileData
+        });
+    }
+
+    async updateContrato(contratoId, data) {
+        const contrato = await ContratoPessoa.findByPk(contratoId);
+        if (!contrato) throw new Error('Contrato not found');
+        await contrato.update(data);
+        return contrato;
+    }
+
+    async deleteContrato(contratoId) {
+        const contrato = await ContratoPessoa.findByPk(contratoId);
+        if (!contrato) throw new Error('Contrato not found');
+
+        // Delete file from disk
+        const filePath = contrato.caminho;
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+
+        await contrato.destroy();
+        return { message: 'Contrato deleted successfully' };
     }
 }
 

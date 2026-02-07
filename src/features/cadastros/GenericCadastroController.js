@@ -10,7 +10,8 @@ const {
     DimensaoPadrao,
     ContaBancariaLoja,
     TipoDeReceitaDespesa,
-    FormaPagamento
+    FormaPagamento,
+    Notificacao
 } = require('../../models');
 
 const modelMap = {
@@ -26,7 +27,8 @@ const modelMap = {
     'contas-loja': ContaBancariaLoja,
     'receitas-despesas': TipoDeReceitaDespesa,
     'contas-pessoa': require('../../models').ContaBancariaPessoa,
-    'formas-pagamento': FormaPagamento
+    'formas-pagamento': FormaPagamento,
+    'notificacoes': Notificacao
 };
 
 class GenericCadastroController {

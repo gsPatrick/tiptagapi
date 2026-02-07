@@ -91,7 +91,9 @@ class VendasService {
 
                 if (peca.tipo_aquisicao === 'CONSIGNACAO' && peca.fornecedorId) {
                     const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
-                    const comissaoPercent = fornecedor.comissao_padrao || 50;
+
+                    // FORCED RULE: Consignment is always 50%
+                    const comissaoPercent = 50;
                     const valorCredito = (valorVenda * comissaoPercent) / 100;
 
                     await ContaCorrentePessoa.create({
@@ -340,16 +342,7 @@ class VendasService {
         });
     }
 
-    async adicionarItemSacolinha(sacolinhaId, pecaId) {
-        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
-        if (!sacolinha) throw new Error('Sacolinha not found');
 
-        const peca = await Peca.findByPk(pecaId);
-        if (!peca || !['DISPONIVEL', 'A_VENDA'].includes(peca.status)) throw new Error('Peça indisponível');
-
-        await peca.update({ status: 'RESERVADA_SACOLINHA' });
-        return sacolinha;
-    }
 
     async fecharSacolinha(sacolinhaId) {
         const sacolinha = await Sacolinha.findByPk(sacolinhaId);
@@ -360,10 +353,23 @@ class VendasService {
 
     async getSacolinhas(filters = {}) {
         const where = {};
-        if (filters.status && filters.status !== 'all') where.status = filters.status.toUpperCase();
-        if (filters.search) {
-            // Assuming search by client name. Need to include Pessoa and filter.
-            // Complex query or just filter by client name if included.
+
+        if (filters.clienteId) {
+            where.clienteId = filters.clienteId;
+        }
+
+        // Map frontend filter values to valid ENUM values
+        if (filters.status && filters.status !== 'all') {
+            const statusMap = {
+                'aberta': 'ABERTA',
+                'pronta': 'PRONTA',
+                'enviada': 'ENVIADA',
+                'fechada': 'FECHADA',
+                'finalizada': 'FECHADA_VIRAR_PEDIDO',
+                'cancelada': 'CANCELADA'
+            };
+            const mappedStatus = statusMap[filters.status.toLowerCase()] || filters.status.toUpperCase();
+            where.status = mappedStatus;
         }
 
         return await Sacolinha.findAll({
@@ -376,10 +382,135 @@ class VendasService {
                         nome: { [Op.like]: `%${filters.search}%` }
                     } : undefined
                 },
-                { model: Peca, as: 'itens' } // Assuming association exists
+                { model: Peca, as: 'itens' }
             ],
             order: [['createdAt', 'DESC']]
         });
+    }
+
+    async getSacolinhaById(id) {
+        const sacolinha = await Sacolinha.findByPk(id, {
+            include: [
+                { model: Pessoa, as: 'cliente' },
+                {
+                    model: Peca,
+                    as: 'itens',
+                    include: [
+                        { model: sequelize.models.Tamanho, as: 'tamanho' },
+                        { model: sequelize.models.Cor, as: 'cor' },
+                        { model: Pessoa, as: 'fornecedor' }
+                    ]
+                }
+            ]
+        });
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        return sacolinha;
+    }
+
+    async atualizarStatusSacolinha(id, novoStatus, codigo_rastreio = null) {
+        const sacolinha = await Sacolinha.findByPk(id);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+
+        const statusValidos = ['ABERTA', 'PRONTA', 'ENVIADA', 'FECHADA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'];
+        if (!statusValidos.includes(novoStatus)) {
+            throw new Error(`Status inválido: ${novoStatus}`);
+        }
+
+        const updateData = { status: novoStatus };
+        if (codigo_rastreio !== null) {
+            updateData.codigo_rastreio = codigo_rastreio;
+        }
+
+        await sacolinha.update(updateData);
+        return sacolinha;
+    }
+
+    async adicionarItemSacolinha(sacolinhaId, pecaId) {
+        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível adicionar itens em sacolinhas abertas');
+
+        const peca = await Peca.findByPk(pecaId);
+        if (!peca) throw new Error('Peça não encontrada');
+
+        // Se a peça já está reservada para outra sacolinha, não pode adicionar
+        if (peca.status === 'RESERVADA_SACOLINHA' && peca.sacolinhaId !== parseInt(sacolinhaId)) {
+            throw new Error('Esta peça já está reservada em outra sacolinha');
+        }
+
+        if (peca.status === 'VENDIDA') throw new Error('Peça já foi vendida');
+
+        if (peca.quantidade > 1) {
+            // Lógica de desmembramento (Split): Se tem mais de 1, tira 1 do estoque e cria um registro para a sacolinha
+            await peca.update({ quantidade: peca.quantidade - 1 });
+
+            const plainPeca = peca.get({ plain: true });
+            delete plainPeca.id;
+            delete plainPeca.uuid;
+            delete plainPeca.createdAt;
+            delete plainPeca.updatedAt;
+
+            const novaUnidadeData = {
+                ...plainPeca,
+                quantidade: 1,
+                quantidade_inicial: 1,
+                status: 'RESERVADA_SACOLINHA',
+                sacolinhaId: sacolinhaId
+            };
+
+            // Ajusta o código de etiqueta para evitar erro de UNIQUE no banco
+            if (novaUnidadeData.codigo_etiqueta) {
+                novaUnidadeData.codigo_etiqueta = `${novaUnidadeData.codigo_etiqueta}-S${sacolinhaId}`;
+            }
+
+            const novaUnidade = await Peca.create(novaUnidadeData);
+            return { message: 'Unidade adicionada à sacolinha', peca: novaUnidade };
+        } else {
+            // Lógica padrão: apenas muda o status e associa
+            await peca.update({
+                sacolinhaId: sacolinhaId,
+                status: 'RESERVADA_SACOLINHA'
+            });
+
+            return { message: 'Peça adicionada à sacolinha', peca };
+        }
+    }
+
+    async removerItemSacolinha(sacolinhaId, pecaId) {
+        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível remover itens de sacolinhas abertas');
+
+        const peca = await Peca.findByPk(pecaId);
+        if (!peca) throw new Error('Peça não encontrada');
+        if (peca.sacolinhaId !== parseInt(sacolinhaId)) throw new Error('Peça não pertence a esta sacolinha');
+
+        // Lógica de Re-unificação (Merge Back):
+        // Se a peça tem o sufixo -S{id}, tentamos devolver a quantidade para a peça original
+        const suffix = `-S${sacolinhaId}`;
+        if (peca.codigo_etiqueta && peca.codigo_etiqueta.endsWith(suffix)) {
+            const originalTag = peca.codigo_etiqueta.replace(suffix, '');
+            const pecaPai = await Peca.findOne({
+                where: {
+                    codigo_etiqueta: originalTag,
+                    status: { [Op.not]: 'VENDIDA' } // Tenta achar o lote original ainda ativo
+                }
+            });
+
+            if (pecaPai) {
+                await pecaPai.update({ quantidade: pecaPai.quantidade + peca.quantidade });
+                await peca.destroy(); // Remove a unidade desmembrada
+                return { message: 'Item devolvido ao lote original e removido da sacolinha' };
+            }
+        }
+
+        // Caso padrão (não era split ou não achou o pai): Apenas libera a peça
+        await peca.update({
+            sacolinhaId: null,
+            status: 'DISPONIVEL'
+        });
+
+        return { message: 'Peça removida da sacolinha e marcada como disponível' };
     }
 
     async getItensVendidos(search) {
@@ -424,8 +555,14 @@ class VendasService {
 
             if (!itemPedido) throw new Error('Venda não encontrada para esta peça');
 
-            // Update Peca
-            await peca.update({ status: 'DISPONIVEL' }, { transaction: t });
+            const pedido = itemPedido.pedido;
+            if (!pedido) throw new Error('Pedido vinculado não encontrado');
+
+            // Update Peca - return to stock
+            await peca.update({
+                status: 'DISPONIVEL',
+                quantidade: (peca.quantidade || 0) + 1
+            }, { transaction: t });
 
             // Create Stock Movement
             await MovimentacaoEstoque.create({
@@ -433,20 +570,52 @@ class VendasService {
                 userId,
                 tipo: 'ENTRADA_DEVOLUCAO',
                 quantidade: 1,
-                motivo: `Devolução Venda ${itemPedido.pedido.codigo_pedido}`,
+                motivo: `Devolução Venda ${pedido.codigo_pedido}`,
                 data_movimento: new Date()
             }, { transaction: t });
 
-            // Generate Credit for Client
-            if (itemPedido.pedido.clienteId) {
+            // Generate Credit for Client (Refund as Store Credit)
+            if (pedido.clienteId) {
                 await CreditoLoja.create({
-                    clienteId: itemPedido.pedido.clienteId,
+                    clienteId: pedido.clienteId,
                     valor: itemPedido.valor_unitario_final,
                     data_validade: addMonths(new Date(), 6),
                     status: 'ATIVO',
                     codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
                 }, { transaction: t });
             }
+
+            // --- REVERSE SUPPLIER COMMISSION (Consignment Items) ---
+            if (peca.tipo_aquisicao === 'CONSIGNACAO' && peca.fornecedorId) {
+                // Find the original credit entry
+                const creditoOriginal = await ContaCorrentePessoa.findOne({
+                    where: {
+                        pessoaId: peca.fornecedorId,
+                        tipo: 'CREDITO',
+                        referencia_origem: peca.id, // pecaId
+                        descricao: { [Op.like]: '%Venda peça%' }
+                    },
+                    order: [['createdAt', 'DESC']],
+                    transaction: t
+                });
+
+                if (creditoOriginal) {
+                    const valorEstorno = parseFloat(creditoOriginal.valor);
+
+                    // Create DEBIT to reverse the commission
+                    await ContaCorrentePessoa.create({
+                        pessoaId: peca.fornecedorId,
+                        tipo: 'DEBITO',
+                        valor: valorEstorno,
+                        descricao: `Estorno devolução peça ${peca.codigo_etiqueta}`,
+                        referencia_origem: peca.id,
+                        data_movimento: new Date()
+                    }, { transaction: t });
+
+                    console.log(`[DEVOLUCAO] Estornado R$ ${valorEstorno} do fornecedor ID ${peca.fornecedorId}`);
+                }
+            }
+            // ---------------------------------------------------------
 
             await t.commit();
             return { message: 'Devolução processada com sucesso' };

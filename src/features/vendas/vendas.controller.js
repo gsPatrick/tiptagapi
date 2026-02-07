@@ -20,16 +20,7 @@ class VendasController {
         }
     }
 
-    async addItemSacolinha(req, res) {
-        try {
-            const { id } = req.params;
-            const { pecaId } = req.body;
-            const result = await vendasService.adicionarItemSacolinha(id, pecaId);
-            return res.json(result);
-        } catch (err) {
-            return res.status(400).json({ error: err.message });
-        }
-    }
+
 
     async fecharSacolinha(req, res) {
         try {
@@ -50,6 +41,48 @@ class VendasController {
         }
     }
 
+    async getSacolinhaById(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await vendasService.getSacolinhaById(parseInt(id));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async atualizarStatusSacolinha(req, res) {
+        try {
+            const { id } = req.params;
+            const { status, codigo_rastreio } = req.body;
+            const result = await vendasService.atualizarStatusSacolinha(parseInt(id), status, codigo_rastreio);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async adicionarItemSacolinha(req, res) {
+        try {
+            const { id } = req.params;
+            const { pecaId } = req.body;
+            const result = await vendasService.adicionarItemSacolinha(parseInt(id), parseInt(pecaId));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
+    async removerItemSacolinha(req, res) {
+        try {
+            const { id, pecaId } = req.params;
+            const result = await vendasService.removerItemSacolinha(parseInt(id), parseInt(pecaId));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async getItensVendidos(req, res) {
         try {
             const { search } = req.query;
@@ -63,7 +96,7 @@ class VendasController {
     async processarDevolucao(req, res) {
         try {
             const { pecaId } = req.body;
-            const userId = req.user.id;
+            const userId = req.userId; // Fixed: use req.userId from auth middleware
             const result = await vendasService.processarDevolucao(pecaId, userId);
             return res.json(result);
         } catch (err) {
