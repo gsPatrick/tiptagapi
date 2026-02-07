@@ -26,12 +26,20 @@ class PessoasService {
     }
 
     async getAll(filters = {}) {
-        const { search, ...otherFilters } = filters;
-        const where = { ...otherFilters };
+        const { search, simple, ...otherFilters } = filters;
+        const where = {};
+
+        // Sanitize: allow only valid Pessoa fields for filtering
+        const allowedFilters = ['is_cliente', 'is_fornecedor', 'tipo', 'email', 'cpf_cnpj', 'rg_ie'];
+        allowedFilters.forEach(key => {
+            if (otherFilters[key] !== undefined) {
+                where[key] = otherFilters[key];
+            }
+        });
 
         // Convert common string booleans from query params
         ['is_cliente', 'is_fornecedor'].forEach(key => {
-            if (typeof where[key] === 'string') {
+            if (where[key] !== undefined && typeof where[key] === 'string') {
                 where[key] = where[key].toLowerCase() === 'true';
             }
         });
@@ -44,11 +52,19 @@ class PessoasService {
             ];
         }
 
-        return await Pessoa.findAll({
+        const options = {
             where,
-            include: ['endereco', 'contasBancarias', 'perfilComportamental'],
             order: [['nome', 'ASC']]
-        });
+        };
+
+        // If simple=true, return only essential fields without heavy associations
+        if (simple === 'true' || simple === true) {
+            options.attributes = ['id', 'nome', 'cpf_cnpj', 'email', 'telefone_whatsapp', 'tipo', 'is_cliente', 'is_fornecedor'];
+        } else {
+            options.include = ['endereco', 'contasBancarias', 'perfilComportamental'];
+        }
+
+        return await Pessoa.findAll(options);
     }
 
     async getById(id) {
