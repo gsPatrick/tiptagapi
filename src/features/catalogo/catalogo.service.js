@@ -10,7 +10,11 @@ class CatalogoService {
         const lastPeca = await Peca.findOne({
             order: [['id', 'DESC']],
         });
-        const nextSeq = lastPeca ? (parseInt(lastPeca.codigo_etiqueta.split('-')[1]) || 1000) + 1 : 1001;
+        let nextSeq = 1001;
+        if (lastPeca && lastPeca.codigo_etiqueta && lastPeca.codigo_etiqueta.includes('-')) {
+            const parts = lastPeca.codigo_etiqueta.split('-');
+            nextSeq = (parseInt(parts[1]) || 1000) + 1;
+        }
         pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
 
         // Set Quantity
