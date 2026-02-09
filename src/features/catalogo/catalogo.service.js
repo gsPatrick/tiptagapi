@@ -7,14 +7,16 @@ class CatalogoService {
         const { fotos, ...pecaData } = data;
 
         // Auto-generate sequential ID and label code
-        const lastPeca = await Peca.findOne({
-            order: [['id', 'DESC']],
-        });
-        let nextSeq = 1001;
-        if (lastPeca && lastPeca.codigo_etiqueta && lastPeca.codigo_etiqueta.includes('-')) {
-            const parts = lastPeca.codigo_etiqueta.split('-');
-            nextSeq = (parseInt(parts[1]) || 1000) + 1;
-        }
+        // Find the highest existing TAG number to avoid duplicates
+        const { sequelize } = require('../../models');
+        const [maxResult] = await sequelize.query(
+            `SELECT MAX(CAST(SPLIT_PART(codigo_etiqueta, '-', 2) AS INTEGER)) as max_num 
+             FROM pecas 
+             WHERE codigo_etiqueta LIKE 'TAG-%'`,
+            { type: sequelize.QueryTypes.SELECT }
+        );
+        const maxNum = maxResult?.max_num || 1000;
+        const nextSeq = maxNum + 1;
         pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
 
         // Set Quantity
