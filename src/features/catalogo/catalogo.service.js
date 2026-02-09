@@ -19,6 +19,30 @@ class CatalogoService {
         const nextSeq = maxNum + 1;
         pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
 
+        // Sanitize dimension fields - convert empty strings to 0
+        const dimensionFields = ['peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        dimensionFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined || pecaData[field] === null) {
+                pecaData[field] = 0;
+            }
+        });
+
+        // Sanitize foreign key fields - convert empty strings to null
+        const fkFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId'];
+        fkFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined) {
+                pecaData[field] = null;
+            }
+        });
+
+        // Sanitize price fields - convert empty strings to 0
+        const priceFields = ['preco_venda', 'preco_custo'];
+        priceFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined || pecaData[field] === null) {
+                pecaData[field] = 0;
+            }
+        });
+
         // Set Quantity
         const quantidade = parseInt(data.stock || data.quantidade || 1);
         pecaData.quantidade = quantidade;
