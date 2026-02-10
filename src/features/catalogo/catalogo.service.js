@@ -213,10 +213,38 @@ class CatalogoService {
     async updatePeca(id, data) {
         const peca = await Peca.findByPk(id);
         if (!peca) throw new Error('Peca not found');
-        if (data.description) {
-            data.descricao_detalhada = data.description;
+
+        const updateData = { ...data };
+
+        // Sanitize foreign key fields - convert empty strings to null
+        const fkFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId'];
+        fkFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined) {
+                updateData[field] = null;
+            }
+        });
+
+        // Sanitize price fields - convert empty strings to 0
+        const priceFields = ['preco_venda', 'preco_custo'];
+        priceFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined || updateData[field] === null) {
+                updateData[field] = 0;
+            }
+        });
+
+        // Sanitize dimension fields - convert empty strings to 0
+        const dimensionFields = ['peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        dimensionFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined || updateData[field] === null) {
+                updateData[field] = 0;
+            }
+        });
+
+        if (updateData.description) {
+            updateData.descricao_detalhada = updateData.description;
         }
-        await peca.update(data);
+
+        await peca.update(updateData);
 
         const updatedPeca = await this.getPecaById(id);
 
