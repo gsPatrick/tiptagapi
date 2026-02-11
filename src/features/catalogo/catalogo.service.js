@@ -7,11 +7,41 @@ class CatalogoService {
         const { fotos, ...pecaData } = data;
 
         // Auto-generate sequential ID and label code
-        const lastPeca = await Peca.findOne({
-            order: [['id', 'DESC']],
-        });
-        const nextSeq = lastPeca ? (parseInt(lastPeca.codigo_etiqueta.split('-')[1]) || 1000) + 1 : 1001;
+        // Find the highest existing TAG number to avoid duplicates
+        const { sequelize } = require('../../models');
+        const [maxResult] = await sequelize.query(
+            `SELECT MAX(CAST(SPLIT_PART(codigo_etiqueta, '-', 2) AS INTEGER)) as max_num 
+             FROM pecas 
+             WHERE codigo_etiqueta LIKE 'TAG-%'`,
+            { type: sequelize.QueryTypes.SELECT }
+        );
+        const maxNum = maxResult?.max_num || 1000;
+        const nextSeq = maxNum + 1;
         pecaData.codigo_etiqueta = `TAG-${nextSeq}`;
+
+        // Sanitize dimension fields - convert empty strings to 0
+        const dimensionFields = ['peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        dimensionFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined || pecaData[field] === null) {
+                pecaData[field] = 0;
+            }
+        });
+
+        // Sanitize foreign key fields - convert empty strings to null
+        const fkFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId'];
+        fkFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined) {
+                pecaData[field] = null;
+            }
+        });
+
+        // Sanitize price fields - convert empty strings to 0
+        const priceFields = ['preco_venda', 'preco_custo'];
+        priceFields.forEach(field => {
+            if (pecaData[field] === '' || pecaData[field] === undefined || pecaData[field] === null) {
+                pecaData[field] = 0;
+            }
+        });
 
         // Set Quantity
         const quantidade = parseInt(data.stock || data.quantidade || 1);
@@ -183,10 +213,38 @@ class CatalogoService {
     async updatePeca(id, data) {
         const peca = await Peca.findByPk(id);
         if (!peca) throw new Error('Peca not found');
-        if (data.description) {
-            data.descricao_detalhada = data.description;
+
+        const updateData = { ...data };
+
+        // Sanitize foreign key fields - convert empty strings to null
+        const fkFields = ['tamanhoId', 'corId', 'marcaId', 'categoriaId', 'fornecedorId'];
+        fkFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined) {
+                updateData[field] = null;
+            }
+        });
+
+        // Sanitize price fields - convert empty strings to 0
+        const priceFields = ['preco_venda', 'preco_custo'];
+        priceFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined || updateData[field] === null) {
+                updateData[field] = 0;
+            }
+        });
+
+        // Sanitize dimension fields - convert empty strings to 0
+        const dimensionFields = ['peso_kg', 'altura_cm', 'largura_cm', 'profundidade_cm'];
+        dimensionFields.forEach(field => {
+            if (updateData[field] === '' || updateData[field] === undefined || updateData[field] === null) {
+                updateData[field] = 0;
+            }
+        });
+
+        if (updateData.description) {
+            updateData.descricao_detalhada = updateData.description;
         }
-        await peca.update(data);
+
+        await peca.update(updateData);
 
         const updatedPeca = await this.getPecaById(id);
 
