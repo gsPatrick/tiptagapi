@@ -9,6 +9,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "db:backup": "node scripts/backup_db.js",
+    "db:conciliar": "node scripts/reconciliar_total.js",
+    "db:resumo": "node scripts/stats_total.js",
+    "fornecedor:relatorio": "node scripts/supplier_report.js",
+    "fornecedor:resumo": "node scripts/fornecedores_resumo.js",
+    "pecas:buscar": "node scripts/consulta_pecas.js",
     "pecas:db-limpar-e-importar": "node scripts/maintain_pecas_db.js",
     "pecas:limpar-e-importar": "node scripts/maintain_pecas.js"
   },
