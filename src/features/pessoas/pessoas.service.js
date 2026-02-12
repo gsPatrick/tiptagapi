@@ -61,10 +61,57 @@ class PessoasService {
         if (simple === 'true' || simple === true) {
             options.attributes = ['id', 'nome', 'cpf_cnpj', 'email', 'telefone_whatsapp', 'tipo', 'is_cliente', 'is_fornecedor'];
         } else {
-            options.include = ['endereco', 'contasBancarias', 'perfilComportamental'];
+            options.include = [
+                'endereco',
+                'contasBancarias',
+                'perfilComportamental',
+                {
+                    model: require('../../models').ContaCorrentePessoa,
+                    as: 'movimentacoesConta',
+                    attributes: ['tipo', 'valor']
+                },
+                {
+                    model: require('../../models').CreditoLoja,
+                    as: 'creditos',
+                    where: {
+                        status: 'ATIVO',
+                        data_validade: { [Op.gte]: new Date() }
+                    },
+                    required: false,
+                    attributes: ['valor']
+                }
+            ];
         }
 
-        return await Pessoa.findAll(options);
+        const pessoas = await Pessoa.findAll(options);
+
+        // Calculate balances
+        return pessoas.map(p => {
+            const person = p.toJSON();
+
+            // 1. Supplier Balance (ContaCorrentePessoa)
+            let saldoContaCorrente = 0;
+            if (person.movimentacoesConta) {
+                person.movimentacoesConta.forEach(m => {
+                    if (m.tipo === 'CREDITO') saldoContaCorrente += parseFloat(m.valor);
+                    else saldoContaCorrente -= parseFloat(m.valor);
+                });
+            }
+
+            // 2. Client Balance (CreditoLoja)
+            let saldoCreditoLoja = 0;
+            if (person.creditos) {
+                person.creditos.forEach(c => {
+                    saldoCreditoLoja += parseFloat(c.valor);
+                });
+            }
+
+            person.saldo = saldoCreditoLoja + Math.max(0, saldoContaCorrente);
+            person.saldoContaCorrente = saldoContaCorrente;
+            person.saldoCreditoLoja = saldoCreditoLoja;
+
+            return person;
+        });
     }
 
     async getById(id) {
