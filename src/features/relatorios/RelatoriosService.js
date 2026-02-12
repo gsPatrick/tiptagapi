@@ -950,18 +950,25 @@ class RelatoriosService {
             whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.dataEntrada)) };
         }
 
-        const pecas = await Peca.findAll({
+        const page = parseInt(filters.page) || 1;
+        const limit = parseInt(filters.limit) || 50;
+        const offset = (page - 1) * limit;
+
+        const { rows, count } = await Peca.findAndCountAll({
             where: whereClause,
+            distinct: true,
             include: [
                 { model: Categoria, as: 'categoria', attributes: ['nome'] },
                 { model: Marca, as: 'marca', attributes: ['nome'] },
                 { model: Tamanho, as: 'tamanho', attributes: ['nome'] },
                 { model: Cor, as: 'cor', attributes: ['nome'] }
             ],
+            limit,
+            offset,
             order: [['data_entrada', 'DESC']]
         });
 
-        return pecas.map(p => ({
+        const data = rows.map(p => ({
             id: p.id,
             codigo: p.codigo_etiqueta || p.id,
             descricao: p.descricao_curta,
@@ -974,6 +981,13 @@ class RelatoriosService {
             status: p.status,
             dataEntrada: p.data_entrada ? new Date(p.data_entrada).toLocaleDateString('pt-BR') : '-'
         }));
+
+        return {
+            data,
+            total: count,
+            totalPages: Math.ceil(count / limit),
+            currentPage: page
+        };
     }
 }
 

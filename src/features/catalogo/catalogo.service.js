@@ -172,6 +172,7 @@ class CatalogoService {
 
         const queryOptions = {
             where,
+            distinct: true,
             include: [
                 { model: FotoPeca, as: 'fotos' },
                 { model: Tamanho, as: 'tamanho' },

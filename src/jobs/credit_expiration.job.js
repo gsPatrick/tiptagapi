@@ -1,6 +1,5 @@
 const cron = require('node-cron');
-const { FinanceiroService } = require('../features/financeiro/financeiro.service');
-const financeiroService = new FinanceiroService();
+const financeiroService = require('../features/financeiro/financeiro.service');
 
 const creditExpirationJob = () => {
     // Run every day at 00:01 AM
