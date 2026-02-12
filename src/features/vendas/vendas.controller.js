@@ -62,6 +62,16 @@ class VendasController {
         }
     }
 
+    async excluirSacolinha(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await vendasService.excluirSacolinha(parseInt(id));
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async adicionarItemSacolinha(req, res) {
         try {
             const { id } = req.params;

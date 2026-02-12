@@ -10,6 +10,7 @@ router.post('/sacolinhas/abrir', vendasController.abrirSacolinha);
 router.get('/sacolinhas', vendasController.getSacolinhas);
 router.get('/sacolinhas/:id', vendasController.getSacolinhaById);
 router.put('/sacolinhas/:id/status', vendasController.atualizarStatusSacolinha);
+router.delete('/sacolinhas/:id', vendasController.excluirSacolinha);
 router.post('/sacolinhas/:id/itens', vendasController.adicionarItemSacolinha);
 router.delete('/sacolinhas/:id/itens/:pecaId', vendasController.removerItemSacolinha);
 

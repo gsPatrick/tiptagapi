@@ -286,10 +286,8 @@ class VendasService {
             // ----------------------
 
             if (sacolinhaId) {
-                const sacolinha = await Sacolinha.findByPk(sacolinhaId, { transaction: t });
-                if (sacolinha) {
-                    await sacolinha.update({ status: 'FECHADA' }, { transaction: t });
-                }
+                // Keep sacolinha open as per user request to allow adding more items later
+                console.log(`Sale linked to sacolinha ${sacolinhaId}. Keeping it open.`);
             }
 
             await t.commit();
@@ -439,22 +437,95 @@ class VendasService {
     }
 
     async atualizarStatusSacolinha(id, novoStatus, codigo_rastreio = null) {
-        const sacolinha = await Sacolinha.findByPk(id);
-        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        const t = await sequelize.transaction();
+        try {
+            const sacolinha = await Sacolinha.findByPk(id, { transaction: t });
+            if (!sacolinha) throw new Error('Sacolinha não encontrada');
 
-        const statusValidos = ['ABERTA', 'PRONTA', 'ENVIADA', 'FECHADA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'];
-        if (!statusValidos.includes(novoStatus)) {
-            throw new Error(`Status inválido: ${novoStatus}`);
+            const statusValidos = ['ABERTA', 'PRONTA', 'ENVIADA', 'FECHADA', 'FECHADA_VIRAR_PEDIDO', 'CANCELADA'];
+            if (!statusValidos.includes(novoStatus)) {
+                throw new Error(`Status inválido: ${novoStatus}`);
+            }
+
+            // Se estiver cancelando, libera os itens
+            if (novoStatus === 'CANCELADA') {
+                await this.liberarItensSacolinha(id, t);
+            }
+
+            const updateData = { status: novoStatus };
+            if (codigo_rastreio !== null) {
+                updateData.codigo_rastreio = codigo_rastreio;
+            }
+
+            await sacolinha.update(updateData, { transaction: t });
+            await t.commit();
+
+            return sacolinha;
+        } catch (err) {
+            await t.rollback();
+            throw err;
         }
-
-        const updateData = { status: novoStatus };
-        if (codigo_rastreio !== null) {
-            updateData.codigo_rastreio = codigo_rastreio;
-        }
-
-        await sacolinha.update(updateData);
-        return sacolinha;
     }
+
+    async excluirSacolinha(id) {
+        const t = await sequelize.transaction();
+        try {
+            const sacolinha = await Sacolinha.findByPk(id, { transaction: t });
+            if (!sacolinha) throw new Error('Sacolinha não encontrada');
+
+            // Libera itens antes de excluir
+            await this.liberarItensSacolinha(id, t);
+
+            // Exclusão física (hard delete) conforme pedido "excluir totalmente"
+            await sacolinha.destroy({ transaction: t, force: true });
+
+            await t.commit();
+            return { message: 'Sacolinha excluída permanentemente e itens liberados.' };
+        } catch (err) {
+            await t.rollback();
+            throw err;
+        }
+    }
+
+    /**
+     * Helper para liberar itens de uma sacolinha (usado no cancelamento e exclusão)
+     */
+    async liberarItensSacolinha(sacolinhaId, transaction) {
+        const pecas = await Peca.findAll({
+            where: { sacolinhaId },
+            transaction
+        });
+
+        for (const peca of pecas) {
+            const suffix = `-S${sacolinhaId}`;
+            // Se a peça tem o sufixo de sacolinha, tenta devolver ao lote original
+            if (peca.codigo_etiqueta && peca.codigo_etiqueta.endsWith(suffix)) {
+                const originalTag = peca.codigo_etiqueta.replace(suffix, '');
+                const pecaPai = await Peca.findOne({
+                    where: {
+                        codigo_etiqueta: originalTag,
+                        status: { [Op.not]: 'VENDIDA' }
+                    },
+                    transaction
+                });
+
+                if (pecaPai) {
+                    await pecaPai.update({ quantidade: pecaPai.quantidade + peca.quantidade }, { transaction });
+                    await peca.destroy({ transaction, force: true });
+                } else {
+                    // Fallback se não achar o pai
+                    await peca.update({ sacolinhaId: null, status: 'DISPONIVEL' }, { transaction });
+                }
+            } else {
+                // Peça normal, apenas remove a reserva
+                await peca.update({
+                    sacolinhaId: null,
+                    status: 'DISPONIVEL'
+                }, { transaction });
+            }
+        }
+    }
+
 
     async adicionarItemSacolinha(sacolinhaId, pecaId) {
         const sacolinha = await Sacolinha.findByPk(sacolinhaId);
