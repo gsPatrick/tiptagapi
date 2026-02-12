@@ -31,6 +31,16 @@ router.use('/cadastros', cadastrosRoutes);
 router.use('/admin', adminRoutes);
 router.use('/caixa', caixaRoutes);
 router.get('/public/system-config', require('../features/admin/admin.controller').getPublicConfigs);
+
+// --- COMPATIBILITY ROUTES (Fix for 404s on frontend) ---
+const genericCadastroController = require('../features/cadastros/GenericCadastroController');
+const { authMiddleware } = require('../middleware/auth.middleware');
+
+router.get('/tamanhos', authMiddleware, (req, res) => { req.params.entidade = 'tamanhos'; return genericCadastroController.getAll(req, res); });
+router.get('/categorias', authMiddleware, (req, res) => { req.params.entidade = 'categorias'; return genericCadastroController.getAll(req, res); });
+router.get('/marcas', authMiddleware, (req, res) => { req.params.entidade = 'marcas'; return genericCadastroController.getAll(req, res); });
+// -------------------------------------------------------
+
 router.use('/', relatoriosRoutes); // Mount at root because routes define their own prefixes like /dashboard and /relatorios
 
 module.exports = router;

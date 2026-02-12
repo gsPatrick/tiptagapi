@@ -8,6 +8,19 @@ const rows = xlsx.utils.sheet_to_json(sheet);
 
 console.log(`Total rows in JSON: ${rows.length}`);
 
+if (rows.length > 0) {
+    console.log('Excel Headers (Keys):', Object.keys(rows[0]));
+    console.log('First Row:', rows[0]);
+}
+
+// Check for columns that might look like "10 100" etc
+const keys = Object.keys(rows[0]);
+const systemKey = keys.find(k => k.toLowerCase().includes('sistem') || k.toLowerCase().includes('num'));
+if (systemKey) {
+    console.log(`Potential System Column found: ${systemKey}`);
+    console.log(`Sample values:`, rows.slice(0, 5).map(r => r[systemKey]));
+}
+
 // Count non-empty values for key columns
 const stats = {
     fornecedor: 0,

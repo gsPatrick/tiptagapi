@@ -181,7 +181,12 @@ class CatalogoService {
             ],
         };
 
-        if (limit) queryOptions.limit = parseInt(limit);
+        if (limit) {
+            queryOptions.limit = parseInt(limit);
+            if (page) {
+                queryOptions.offset = (parseInt(page) - 1) * queryOptions.limit;
+            }
+        }
         if (order) {
             // Handle "field:direction" format or just "desc" (assuming createdAt)
             if (order.includes(':')) {
@@ -284,6 +289,19 @@ class CatalogoService {
         }
 
         const { fotos, ...cleanData } = updateData;
+
+        // Validation: If assigning to a sacolinha, check piece status
+        if (cleanData.sacolinhaId && cleanData.sacolinhaId !== peca.sacolinhaId) {
+            if (peca.status === 'VENDIDA') {
+                throw new Error('Não é possível adicionar uma peça já vendida a uma sacolinha');
+            }
+            if (peca.status === 'RESERVADA_SACOLINHA' && peca.sacolinhaId) {
+                throw new Error('Esta peça já está reservada em outra sacolinha');
+            }
+            // Automatically set status to reflect reservation
+            cleanData.status = 'RESERVADA_SACOLINHA';
+        }
+
         await peca.update(cleanData);
 
         // Sync Photos if provided
@@ -293,11 +311,15 @@ class CatalogoService {
 
             // Create new
             if (fotos.length > 0) {
-                const photosData = fotos.map((url, index) => ({
-                    pecaId: id,
-                    url,
-                    ordem: index
-                }));
+                const photosData = fotos.map((f, index) => {
+                    const url = typeof f === 'string' ? f : (f.url || '');
+                    return {
+                        pecaId: id,
+                        url,
+                        ordem: index
+                    };
+                }).filter(p => p.url !== ''); // Don't save empty URLs
+
                 await FotoPeca.bulkCreate(photosData);
             }
         }

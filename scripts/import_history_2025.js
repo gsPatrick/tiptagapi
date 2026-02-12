@@ -56,6 +56,17 @@ const Tamanho = TamanhoModel(sequelize, DataTypes);
 const Local = LocalModel(sequelize, DataTypes);
 const Motivo = MotivoModel(sequelize, DataTypes);
 
+// Import Sales Models
+const PedidoModel = require('../src/models/Pedido');
+const ItemPedidoModel = require('../src/models/ItemPedido');
+const PagamentoPedidoModel = require('../src/models/PagamentoPedido');
+const ContaCorrentePessoaModel = require('../src/models/ContaCorrentePessoa');
+
+const Pedido = PedidoModel(sequelize, DataTypes);
+const ItemPedido = ItemPedidoModel(sequelize, DataTypes);
+const PagamentoPedido = PagamentoPedidoModel(sequelize, DataTypes);
+const ContaCorrentePessoa = ContaCorrentePessoaModel(sequelize, DataTypes);
+
 const EXCEL_FILE = path.join(__dirname, '../pecas (2).xlsx');
 const FIXED_DATE = new Date('2025-12-24T12:00:00Z');
 
@@ -143,6 +154,33 @@ async function main() {
         let countProcessed = 0;
         let countCreated = 0;
 
+        // Track processed suppliers to clean them only once
+        const processedSuppliers = new Set();
+
+        async function cleanSupplierItems(supplierId) {
+            console.log(`Cleaning items for Supplier ID: ${supplierId}...`);
+            // Find IDs to delete
+            const items = await Peca.findAll({
+                where: { fornecedorId: supplierId },
+                attributes: ['id']
+            });
+            const ids = items.map(i => i.id);
+
+            if (ids.length > 0) {
+                // Delete ItemPedido
+                await ItemPedido.destroy({ where: { pecaId: ids } });
+                // Delete Financials
+                await ContaCorrentePessoa.destroy({ where: { referencia_origem: ids } });
+                // Delete PagamentoPedido/Pedido? 
+                // Creating IDs 'LEGACY-' allows us to target them if needed. 
+                // But cascading from ItemPedido might leave empty Pedidos.
+                // Ideally we find Pedidos that have NO items and delete them.
+                // For now, let's just delete the items and their direct links.
+                await Peca.destroy({ where: { id: ids } });
+                console.log(`Deleted ${ids.length} items for supplier ${supplierId}.`);
+            }
+        }
+
         // Get the current max Tag number
         const [maxTagResult] = await sequelize.query(
             `SELECT MAX(CAST(SPLIT_PART(codigo_etiqueta, '-', 2) AS INTEGER)) as max_num
@@ -199,6 +237,11 @@ async function main() {
                     supplierId = insertResult[0]?.id || insertResult;
                 }
 
+                if (supplierId && !processedSuppliers.has(supplierId)) {
+                    await cleanSupplierItems(supplierId);
+                    processedSuppliers.add(supplierId);
+                }
+
                 // 2. Handle Item
                 const statusRaw = getCol(row, 'status');
                 // 9 -> A VENDA (DISPONIVEL)
@@ -239,7 +282,7 @@ async function main() {
 
                 // Create Peca
                 const codigo_etiqueta = `TAG-${nextTagNum++}`;
-                await Peca.create({
+                const novaPeca = await Peca.create({
                     uuid: require('crypto').randomUUID(),
                     codigo_etiqueta: codigo_etiqueta,
                     sku_ecommerce: id_alternativo ? String(id_alternativo) : null,
@@ -262,6 +305,65 @@ async function main() {
                     tipo_aquisicao: 'CONSIGNACAO',
                     localId: null,
                 });
+
+                // If VENDIDA, create sales records (Pedido, ItemPedido, PagamentoPedido)
+                if (status === 'VENDIDA') {
+                    const uniqueSuffix = Math.floor(Math.random() * 10000);
+                    const codigo_pedido = `LEGACY-${novaPeca.id}-${uniqueSuffix}`;
+
+                    // Create Pedido
+                    const pedido = await Pedido.create({
+                        codigo_pedido: codigo_pedido,
+                        origem: 'PDV',
+                        clienteId: null,
+                        vendedorId: null,
+                        status: 'PAGO',
+                        tipo_frete: 'RETIRADA',
+                        valor_frete: 0,
+                        subtotal: preco,
+                        desconto: 0,
+                        total: preco,
+                        data_pedido: data_venda,
+                        createdAt: data_venda,
+                        updatedAt: data_venda
+                    });
+
+                    // Create ItemPedido
+                    await ItemPedido.create({
+                        pedidoId: pedido.id,
+                        pecaId: novaPeca.id,
+                        valor_unitario: preco,
+                        quantidade: 1,
+                        desconto: 0,
+                        valor_unitario_final: preco,
+                        createdAt: data_venda,
+                        updatedAt: data_venda
+                    });
+
+                    // Create PagamentoPedido
+                    await PagamentoPedido.create({
+                        pedidoId: pedido.id,
+                        metodo: 'DINHEIRO',
+                        valor: preco,
+                        createdAt: data_venda,
+                        updatedAt: data_venda
+                    });
+
+                    // Create ContaCorrentePessoa (Financial Record for Supplier)
+                    if (novaPeca.tipo_aquisicao === 'CONSIGNACAO' && novaPeca.fornecedorId) {
+                        const valorCredito = preco * 0.5;
+                        await ContaCorrentePessoa.create({
+                            pessoaId: novaPeca.fornecedorId,
+                            tipo: 'CREDITO',
+                            valor: valorCredito,
+                            descricao: `Venda peça ${novaPeca.codigo_etiqueta}`,
+                            referencia_origem: novaPeca.id,
+                            data_movimento: data_venda,
+                            createdAt: data_venda,
+                            updatedAt: data_venda
+                        });
+                    }
+                }
 
                 countCreated++;
             } catch (err) {

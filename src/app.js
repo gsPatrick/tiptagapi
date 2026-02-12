@@ -25,6 +25,12 @@ app.use((err, req, res, next) => {
 });
 
 const { User } = require('./models');
+const creditExpirationJob = require('./jobs/credit_expiration.job');
+const syncJob = require('./jobs/sync.job');
+
+// Start Jobs
+creditExpirationJob();
+syncJob();
 
 
 

@@ -1,11 +1,11 @@
 require('dotenv').config();
 const { startOfDay, endOfDay } = require('date-fns');
 const RelatoriosService = require('../src/features/relatorios/RelatoriosService');
-const { ItemPedido, Pedido, Sequelize, Peca } = require('../src/models');
+const { Sequelize, Pedido, ItemPedido, Peca, Pessoa, ContaCorrentePessoa } = require('../src/models');
 
 async function verify() {
     try {
-        console.log('--- Verifying RelatoriosService Fix (Production DB) ---');
+        console.log(`--- Verifying RelatoriosService Fix (DB Host: ${process.env.DB_HOST}) ---`);
 
         // 0. Check Order #7058
         console.log('\n0. Checking for Order #7058...');
@@ -103,10 +103,40 @@ async function verify() {
         const totalPecas = await Peca.count();
         console.log(`Total Pecas in DB: ${totalPecas}`);
 
+        // 5. Check for Orphan Sold Items (VENDIDA but no ItemPedido)
+        console.log('\n5. Checking for Orphan Sold Items (Legacy/Imported History)...');
+
+        // Find pieces that are VENDIDA
+        const soldPecas = await Peca.findAll({
+            where: { status: 'VENDIDA' },
+            attributes: ['id', 'codigo_etiqueta', 'fornecedorId', 'data_venda'],
+            limit: 10
+        });
+
+        console.log(`Checking ${soldPecas.length} sample VENDIDA items...`);
+
+        for (const p of soldPecas) {
+            const item = await ItemPedido.findOne({ where: { pecaId: p.id } });
+            if (!item) {
+                console.log(`⚠️ ORPHAN DETECTED: Peca ${p.id} (${p.codigo_etiqueta}) is VENDIDA but has NO ItemPedido.`);
+
+                // Check if it has financial record at least
+                if (p.fornecedorId) {
+                    const financial = await ContaCorrentePessoa.findOne({
+                        where: { referencia_origem: p.id, tipo: 'CREDITO' }
+                    });
+                    console.log(`   - Financial Record (ContaCorrente): ${financial ? 'FOUND ✅' : 'MISSING ❌'}`);
+                }
+            } else {
+                console.log(`✅ OK: Peca ${p.id} has ItemPedido ${item.id}`);
+            }
+        }
+
     } catch (error) {
-        console.error('Error during verification:', error);
+        console.error('Verification failed:', error);
     } finally {
-        process.exit();
+        // Close DB connection if needed, usually process exit handles it
+        // process.exit();
     }
 }
 

@@ -66,7 +66,10 @@ class EstoqueService {
         return await MovimentacaoEstoque.findAll({
             where: { pecaId },
             order: [['createdAt', 'DESC']],
-            include: [{ model: Peca, as: 'peca' }]
+            include: [
+                { model: Peca, as: 'peca' },
+                { model: require('../../models').User, as: 'usuario', attributes: ['id', 'name', 'email'] }
+            ]
         });
     }
 }

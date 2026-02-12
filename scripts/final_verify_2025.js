@@ -52,6 +52,33 @@ async function verify() {
             console.log(`   Líquido Fornecedor (50%): R$ ${parseFloat(s.total_fornecedor || 0).toFixed(2)}`);
         });
 
+        // 2. Sales & Financials Verification
+        const [soldCount] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM pecas WHERE status = 'VENDIDA' AND DATE(data_entrada) = :date`,
+            { replacements: { date: targetDate }, type: sequelize.QueryTypes.SELECT }
+        );
+
+        const [ordersCount] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM pedidos WHERE codigo_pedido LIKE 'LEGACY-%'`,
+            { type: sequelize.QueryTypes.SELECT }
+        );
+
+        const [financialsCount] = await sequelize.query(
+            `SELECT COUNT(*) as count FROM conta_corrente_pessoas WHERE descricao LIKE 'Venda peça TAG-%' AND DATE(created_at) = :date`,
+            { replacements: { date: targetDate }, type: sequelize.QueryTypes.SELECT }
+        );
+
+        console.log('\n--- Sales & Financials Verification ---');
+        console.log(`VENDIDA Items: ${soldCount.count}`);
+        console.log(`Generated Orders (Legacy): ${ordersCount.count}`);
+        console.log(`Financial Records (Credits): ${financialsCount.count}`);
+
+        if (parseInt(soldCount.count) !== parseInt(ordersCount.count)) {
+            console.warn('⚠️ WARNING: Mismatch between Sold Items and Generated Orders!');
+        } else {
+            console.log('✅ Sales Records Aggregation: MATCH');
+        }
+
         // 2. All unique suppliers in this import
         const [suppliers] = await sequelize.query(
             `SELECT DISTINCT pe.id, pe.nome 

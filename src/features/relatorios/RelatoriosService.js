@@ -614,9 +614,52 @@ class RelatoriosService {
                 desc: p.descricao_curta,
                 preco: parseFloat(item.valor_unitario || 0),
                 descVal: parseFloat(item.desconto || 0),
-                total: parseFloat(item.valor_unitario_final || 0)
+                total: parseFloat(item.valor_unitario_final || 0),
+                status: 'VENDIDA'
             });
         });
+
+        // 2. Add Available Items (DISPONIVEL)
+        if (fornecedorId && fornecedorId !== 'null') {
+            const whereAvailable = {
+                fornecedorId,
+                status: 'DISPONIVEL'
+            };
+
+            // Optional: Filter by entry date if needed, but usually available is unrelated to sales date range
+            // If user wants history of entries, we can filter by data_entrada
+            if (inicio && fim) {
+                const s = startOfDay(new Date(inicio));
+                const e = endOfDay(new Date(fim));
+                whereAvailable.data_entrada = { [Op.between]: [s, e] };
+            }
+
+            const availableItems = await Peca.findAll({
+                where: whereAvailable,
+                include: [
+                    { model: Categoria, as: 'categoria', attributes: ['nome'] },
+                    { model: Marca, as: 'marca', attributes: ['nome'] }
+                ]
+            });
+
+            availableItems.forEach(p => {
+                const cat = p.categoria ? p.categoria.nome : 'OUTROS';
+                const marca = p.marca ? p.marca.nome : 'OUTROS';
+
+                catMap[cat] = (catMap[cat] || 0) + 1;
+                marcaMap[marca] = (marcaMap[marca] || 0) + 1;
+
+                pecasList.push({
+                    venda: '-',
+                    data: p.data_entrada ? new Date(p.data_entrada).toLocaleDateString('pt-BR') : '-',
+                    desc: p.descricao_curta,
+                    preco: parseFloat(p.preco_venda || 0),
+                    descVal: 0,
+                    total: parseFloat(p.preco_venda || 0),
+                    status: 'DISPONIVEL'
+                });
+            });
+        }
 
         const categorias = Object.entries(catMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
         const marcas = Object.entries(marcaMap).map(([nome, total]) => ({ nome, total })).sort((a, b) => b.total - a.total);
