@@ -194,7 +194,18 @@ class CatalogoService {
             queryOptions.order = [['createdAt', 'DESC']]; // Default
         }
 
-        return await Peca.findAll(queryOptions);
+        const { rows, count } = await Peca.findAndCountAll(queryOptions);
+
+        if (limit) {
+            return {
+                data: rows,
+                total: count,
+                totalPages: Math.ceil(count / limit),
+                currentPage: parseInt(page)
+            };
+        }
+
+        return rows;
     }
 
     async getPecaById(id) {
@@ -244,7 +255,24 @@ class CatalogoService {
             updateData.descricao_detalhada = updateData.description;
         }
 
-        await peca.update(updateData);
+        const { fotos, ...cleanData } = updateData;
+        await peca.update(cleanData);
+
+        // Sync Photos if provided
+        if (fotos && Array.isArray(fotos)) {
+            // Remove existing
+            await FotoPeca.destroy({ where: { pecaId: id } });
+
+            // Create new
+            if (fotos.length > 0) {
+                const photosData = fotos.map((url, index) => ({
+                    pecaId: id,
+                    url,
+                    ordem: index
+                }));
+                await FotoPeca.bulkCreate(photosData);
+            }
+        }
 
         const updatedPeca = await this.getPecaById(id);
 

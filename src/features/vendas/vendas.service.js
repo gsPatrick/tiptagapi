@@ -9,7 +9,7 @@ const automacaoService = require('../automacao/automacao.service');
 
 class VendasService {
     async processarVendaPDV(data, userId) {
-        const { clienteId, itens, pagamentos, origemVendaId, canal } = data;
+        const { clienteId, itens, pagamentos, origemVendaId, canal, sacolinhaId } = data;
 
         const caixaAberto = await CaixaDiario.findOne({
             where: { userId, status: 'ABERTO' }
@@ -36,7 +36,7 @@ class VendasService {
             for (const item of itens) {
                 const peca = await Peca.findByPk(item.pecaId, { transaction: t });
 
-                if (!peca || !['DISPONIVEL', 'A_VENDA', 'NOVA'].includes(peca.status)) {
+                if (!peca || !['DISPONIVEL', 'A_VENDA', 'NOVA', 'RESERVADA_SACOLINHA'].includes(peca.status)) {
                     throw new Error(`Peça ${item.pecaId} indisponível`);
                 }
 
@@ -326,6 +326,14 @@ class VendasService {
             }
             // -------------------------------------------
 
+            if (sacolinhaId) {
+                const sacolinha = await Sacolinha.findByPk(sacolinhaId, { transaction: t });
+                if (sacolinha) {
+                    await sacolinha.update({ status: 'FECHADA' }, { transaction: t });
+                }
+            }
+
+            await t.commit();
             return pedido;
 
         } catch (err) {

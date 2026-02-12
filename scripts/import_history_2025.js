@@ -88,33 +88,40 @@ async function getOrCreateModel(Model, name, cacheMap, defaults = {}) {
     return record.id;
 }
 
+// Specific name consolidation rules from user
+const NAME_CONSOLIDATIONS = {
+    // Input variations -> Output name
+    'ALINE GUIMARÃES ORNAGUI': 'ALINE ORNAGUI',
+    'ALINE GUIMARAES ORNAGUI': 'ALINE ORNAGUI',
+    'ALINE LIMA POR GARIMPO': 'ALINE ORNAGUI',
+    'ALINE LIMA': 'ALINE ORNAGUI',
+    'DENISE LIMA FOR GARIMPO': 'DENISE LIMA',
+    'DENISE LIMA FOR GARIMPO 18': 'DENISE LIMA',
+    'EDERALDO BUENO': 'LUANA VERONESI',
+    'LUANA': 'LUANA VERONESI',
+    'CLAUDIA MÃE LUANA': 'LUANA VERONESI',
+    'CLAUDIA MAE LUANA': 'LUANA VERONESI',
+    'JUJU SIMÕES': 'JULIANA SIMÕES',
+    'JUJU SIMOES': 'JULIANA SIMÕES',
+    'JULIANA SIMOES': 'JULIANA SIMÕES',
+    'KELY LUZ': 'KELLY LUZ',
+    'KELY LUZ COD 125': 'KELLY LUZ',
+    'LETICIA REZZINI': 'LETICIA REGAZZINI',
+    'MARIA APARECIDA CARVALHO ALMEIDA FORN': 'MARIA AP. DE CARVALHO ALMEIDA',
+    'MARIA APARECIDA CARVALHO ALMEIDA': 'MARIA AP. DE CARVALHO ALMEIDA',
+};
+
 function normalizeSupplierName(rawName) {
     if (!rawName) return null;
-    let name = rawName.toString().trim();
+    let name = rawName.toString().trim().toUpperCase();
 
-    // Rule 1: [NAME] takes precedence
-    const braceletMatch = name.match(/\[(.*?)\]/);
-    if (braceletMatch) {
-        return braceletMatch[1].trim().toUpperCase();
+    // Check if this name has a specific consolidation rule
+    if (NAME_CONSOLIDATIONS[name]) {
+        return NAME_CONSOLIDATIONS[name];
     }
 
-    // Rule 2: "NAME FICA"
-    if (name.toUpperCase().includes(' FICA')) {
-        name = name.split(/ FICA/i)[0];
-    }
-
-    // Cleanups
-    name = name.replace(/\s+FORN\b\.?/i, '');
-    name = name.replace(/\s+FOR\b\.?/i, '');
-    name = name.replace(/\s+GARIMPO\b/i, '');
-    name = name.replace(/\s+COD\s*\d+/i, '');
-    name = name.replace(/[0-9]+$/, ''); // Remove trailing numbers like " 258"
-
-    if (name.includes(',')) {
-        name = name.split(',')[0];
-    }
-
-    return name.trim().toUpperCase();
+    // Otherwise, return the exact name from the spreadsheet (just trimmed and uppercased)
+    return name;
 }
 
 async function main() {
@@ -136,6 +143,16 @@ async function main() {
         let countProcessed = 0;
         let countCreated = 0;
 
+        // Get the current max Tag number
+        const [maxTagResult] = await sequelize.query(
+            `SELECT MAX(CAST(SPLIT_PART(codigo_etiqueta, '-', 2) AS INTEGER)) as max_num
+             FROM pecas
+             WHERE codigo_etiqueta LIKE 'TAG-%'`,
+            { type: sequelize.QueryTypes.SELECT }
+        );
+        let nextTagNum = (maxTagResult?.max_num || 1000) + 1;
+        console.log(`Starting with Tag number: TAG-${nextTagNum}`);
+
         // Helper for case-insensitive lookup
         const getCol = (row, key) => {
             const exact = row[key];
@@ -155,31 +172,31 @@ async function main() {
                     continue;
                 }
 
-                // 1. Handle Supplier
-                let supplier = await Pessoa.findOne({
-                    where: sequelize.where(
-                        sequelize.fn('upper', sequelize.col('nome')),
-                        supplierName
-                    )
-                });
+                // 1. Handle Supplier using raw SQL (to avoid model column mismatch)
+                const [existingSuppliers] = await sequelize.query(
+                    `SELECT id, nome, is_fornecedor, is_cliente FROM pessoas 
+                     WHERE UPPER(nome) = :nome AND deleted_at IS NULL LIMIT 1`,
+                    { replacements: { nome: supplierName }, type: sequelize.QueryTypes.SELECT }
+                );
 
-                if (!supplier) {
-                    console.log(`Creating new Provider/Client: ${supplierName}`);
-                    supplier = await Pessoa.create({
-                        nome: supplierName,
-                        is_fornecedor: true,
-                        is_cliente: true, // "AMBOS"
-                        tipo: 'PF'
-                    });
-                } else {
-                    // Ensure flags are correct if existing
-                    let updated = false;
-                    if (!supplier.is_fornecedor || !supplier.is_cliente) {
-                        supplier.is_fornecedor = true;
-                        supplier.is_cliente = true;
-                        await supplier.save();
-                        updated = true;
+                let supplierId;
+                if (existingSuppliers && existingSuppliers.id) {
+                    supplierId = existingSuppliers.id;
+                    // Update flags if needed
+                    if (!existingSuppliers.is_fornecedor || !existingSuppliers.is_cliente) {
+                        await sequelize.query(
+                            `UPDATE pessoas SET is_fornecedor = true, is_cliente = true, updated_at = NOW() WHERE id = :id`,
+                            { replacements: { id: supplierId } }
+                        );
                     }
+                } else {
+                    console.log(`Creating new Provider/Client: ${supplierName}`);
+                    const [insertResult] = await sequelize.query(
+                        `INSERT INTO pessoas (nome, is_fornecedor, is_cliente, tipo, created_at, updated_at) 
+                         VALUES (:nome, true, true, 'PF', NOW(), NOW()) RETURNING id`,
+                        { replacements: { nome: supplierName }, type: sequelize.QueryTypes.INSERT }
+                    );
+                    supplierId = insertResult[0]?.id || insertResult;
                 }
 
                 // 2. Handle Item
@@ -191,17 +208,26 @@ async function main() {
                 let data_venda = null;
                 const data_entrada = FIXED_DATE;
 
-                if (statusRaw == 9) {
+                const statusStr = String(statusRaw || '').toUpperCase();
+                if (statusStr.startsWith('9')) {
                     status = 'DISPONIVEL';
-                } else if (statusRaw == 4) {
+                } else if (statusStr.startsWith('4')) {
                     status = 'VENDIDA';
                     data_venda = FIXED_DATE;
+                } else if (statusStr.startsWith('1')) {
+                    status = 'NOVA';
+                } else if (statusStr.startsWith('5')) {
+                    status = 'DEVOLVIDA_FORNECEDOR';
                 }
 
                 const descricao = getCol(row, 'descricao') || getCol(row, 'descrição') || 'Item sem descrição';
                 const preco = parseFloat(getCol(row, 'preco') || getCol(row, 'preço')) || 0;
                 const custo = parseFloat(getCol(row, 'custo')) || 0;
-                const comissao = parseFloat(getCol(row, 'comissao') || getCol(row, 'comissão')) || 0;
+                const id_alternativo = getCol(row, 'id_alternativo');
+
+                // Commission is always 50% as per user request
+                const valor_comissao_loja = preco * 0.5;
+                const valor_liquido_fornecedor = preco * 0.5;
 
                 // Relational fields
                 const marcaName = getCol(row, 'marca') || getCol(row, 'marcar');
@@ -212,17 +238,22 @@ async function main() {
                 const tamanhoId = await getOrCreateModel(Tamanho, getCol(row, 'tamanho'), cache.tamanhos);
 
                 // Create Peca
+                const codigo_etiqueta = `TAG-${nextTagNum++}`;
                 await Peca.create({
+                    uuid: require('crypto').randomUUID(),
+                    codigo_etiqueta: codigo_etiqueta,
+                    sku_ecommerce: id_alternativo ? String(id_alternativo) : null,
                     descricao_curta: descricao.substring(0, 70),
                     descricao_detalhada: descricao,
-                    fornecedorId: supplier.id,
+                    fornecedorId: supplierId,
                     marcaId,
                     categoriaId,
                     corId,
                     tamanhoId,
                     preco_venda: preco,
                     preco_custo: custo,
-                    valor_comissao_loja: comissao > 0 ? (preco * (comissao / 100)) : 0,
+                    valor_comissao_loja: valor_comissao_loja,
+                    valor_liquido_fornecedor: valor_liquido_fornecedor,
                     status: status,
                     data_entrada: data_entrada,
                     data_venda: data_venda,
@@ -234,8 +265,12 @@ async function main() {
 
                 countCreated++;
             } catch (err) {
-                console.error(`Error processing row ${countProcessed}:`, err.message);
+                console.error(`Error processing row ${countProcessed + 1}:`, err.message);
             }
+            countProcessed++;
+
+            // Add a small delay to prevent overwhelming the DB connection
+            await new Promise(resolve => setTimeout(resolve, 50));
 
             if (countProcessed % 50 === 0) {
                 console.log(`Processed ${countProcessed} rows...`);
