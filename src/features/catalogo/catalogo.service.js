@@ -69,16 +69,16 @@ class CatalogoService {
         }
 
         // --- Calculation of Commission and Net Values ---
-        if (pecaData.tipo_aquisicao === 'CONSIGNACAO' && pecaData.fornecedorId) {
-            const fornecedor = await Pessoa.findByPk(pecaData.fornecedorId);
-            const comissaoPercent = fornecedor ? (parseFloat(fornecedor.comissao_padrao) || 50) : 50;
+        if (pecaData.tipo_aquisicao === 'CONSIGNACAO') {
+            // Force 50/50 Split Rule
+            // const fornecedor = await Pessoa.findByPk(pecaData.fornecedorId);
+            // const comissaoPercent = fornecedor ? (parseFloat(fornecedor.comissao_padrao) || 50) : 50;
 
             const preco = parseFloat(pecaData.preco_venda || 0);
-            const valorFornecedor = (preco * comissaoPercent) / 100;
-            const valorLoja = preco - valorFornecedor;
+            const split = preco * 0.5;
 
-            pecaData.valor_liquido_fornecedor = valorFornecedor;
-            pecaData.valor_comissao_loja = valorLoja;
+            pecaData.valor_liquido_fornecedor = split;
+            pecaData.valor_comissao_loja = split;
 
         } else if (pecaData.tipo_aquisicao === 'COMPRA') {
             const preco = parseFloat(pecaData.preco_venda || 0);
@@ -196,20 +196,35 @@ class CatalogoService {
 
         const { rows, count } = await Peca.findAndCountAll(queryOptions);
 
+        // --- ENFORCE 50/50 VIEW LOGIC ---
+        const fixPeca = (p) => {
+            const json = p.toJSON ? p.toJSON() : p;
+            if (json.tipo_aquisicao === 'CONSIGNACAO') {
+                const preco = parseFloat(json.preco_venda || 0);
+                const split = (preco * 0.5).toFixed(2);
+                json.valor_comissao_loja = split;
+                json.valor_liquido_fornecedor = split;
+            }
+            return json;
+        };
+
+        const fixedRows = rows.map(fixPeca);
+        // --------------------------------
+
         if (limit) {
             return {
-                data: rows,
+                data: fixedRows,
                 total: count,
                 totalPages: Math.ceil(count / limit),
                 currentPage: parseInt(page)
             };
         }
 
-        return rows;
+        return fixedRows;
     }
 
     async getPecaById(id) {
-        return await Peca.findByPk(id, {
+        const peca = await Peca.findByPk(id, {
             include: [
                 { model: FotoPeca, as: 'fotos' },
                 { model: Tamanho, as: 'tamanho' },
@@ -219,6 +234,19 @@ class CatalogoService {
                 { model: Pessoa, as: 'fornecedor' },
             ],
         });
+
+        if (!peca) return null;
+
+        // --- ENFORCE 50/50 VIEW LOGIC ---
+        const json = peca.toJSON();
+        if (json.tipo_aquisicao === 'CONSIGNACAO') {
+            const preco = parseFloat(json.preco_venda || 0);
+            const split = (preco * 0.5).toFixed(2);
+            json.valor_comissao_loja = split;
+            json.valor_liquido_fornecedor = split;
+        }
+        return json;
+        // --------------------------------
     }
 
     async updatePeca(id, data) {

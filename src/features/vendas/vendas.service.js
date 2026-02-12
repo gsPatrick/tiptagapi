@@ -90,9 +90,9 @@ class VendasService {
                 }, { transaction: t });
 
                 if (peca.tipo_aquisicao === 'CONSIGNACAO' && peca.fornecedorId) {
-                    const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
+                    // const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
 
-                    // FORCED RULE: Consignment is always 50%
+                    // FORCED RULE: Consignment is always 50% (Overrides database defaults)
                     const comissaoPercent = 50;
                     const valorCredito = (valorVenda * comissaoPercent) / 100;
 
@@ -337,7 +337,10 @@ class VendasService {
             return pedido;
 
         } catch (err) {
-            await t.rollback();
+            // Only rollback if transaction has not been finished
+            if (!t.finished) {
+                await t.rollback();
+            }
             throw err;
         }
     }

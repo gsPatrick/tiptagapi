@@ -5,7 +5,20 @@ const { ItemPedido, Pedido, Sequelize, Peca } = require('../src/models');
 
 async function verify() {
     try {
-        console.log('--- Verifying RelatoriosService Fix ---');
+        console.log('--- Verifying RelatoriosService Fix (Production DB) ---');
+
+        // 0. Check Order #7058
+        console.log('\n0. Checking for Order #7058...');
+        // The user said "Pedido 7058", assuming it's the ID or codigo_pedido. 
+        // Let's check both.
+        const order7058_id = await Pedido.findByPk(7058);
+        const order7058_code = await Pedido.findOne({ where: { codigo_pedido: '7058' } }); // Adjust if format is different like PDV-
+
+        if (order7058_id) console.log('Found Order by ID 7058:', order7058_id.toJSON());
+        else console.log('Order ID 7058 not found.');
+
+        if (order7058_code) console.log('Found Order by Code 7058:', order7058_code.toJSON());
+        else console.log('Order Code 7058 not found.');
 
         // Test getVendasPorFornecedor (All Time)
         console.log('\n1. Testing getVendasPorFornecedor (All Time)...');
