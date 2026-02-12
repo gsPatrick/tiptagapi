@@ -77,7 +77,8 @@ class VendasService {
                 // Decrement Stock Logic
                 const novaQuantidade = peca.quantidade - 1;
                 const updateData = {
-                    quantidade: novaQuantidade
+                    quantidade: novaQuantidade,
+                    sacolinhaId: sacolinhaId || peca.sacolinhaId // Ensure association is saved/preserved
                 };
 
                 if (novaQuantidade <= 0) {
@@ -497,6 +498,14 @@ class VendasService {
         });
 
         for (const peca of pecas) {
+            const isSold = peca.status === 'VENDIDA';
+
+            // Se for peça VENDIDA, apenas removemos o vínculo com a sacolinha
+            if (isSold) {
+                await peca.update({ sacolinhaId: null }, { transaction });
+                continue;
+            }
+
             const suffix = `-S${sacolinhaId}`;
             // Se a peça tem o sufixo de sacolinha, tenta devolver ao lote original
             if (peca.codigo_etiqueta && peca.codigo_etiqueta.endsWith(suffix)) {
