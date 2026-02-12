@@ -221,8 +221,6 @@ class RelatoriosService {
                 [Sequelize.col('peca.fornecedor.nome'), 'fornecedor'],
                 [Sequelize.fn('COUNT', Sequelize.col('ItemPedido.id')), 'qtd'],
                 [Sequelize.fn('SUM', Sequelize.col('valor_unitario_final')), 'valor'],
-                [Sequelize.fn('SUM', Sequelize.col('peca.valor_comissao_loja')), 'loja'],
-                [Sequelize.fn('SUM', Sequelize.col('peca.valor_liquido_fornecedor')), 'custo']
             ],
             include: [
                 {
@@ -245,10 +243,13 @@ class RelatoriosService {
 
         return vendas.map(v => {
             const valor = parseFloat(v.valor || 0);
-            const loja = parseFloat(v.loja || 0);
-            const custo = parseFloat(v.custo || 0);
             const qtd = parseInt(v.qtd || 0);
-            const margem = valor > 0 ? (loja / valor) * 100 : 0;
+
+            // Force 50% split on actual sales value
+            const loja = valor * 0.5;
+            const custo = valor * 0.5;
+
+            const margem = valor > 0 ? (loja / valor) * 100 : 0; // Should be 50%
             const ticket = qtd > 0 ? valor / qtd : 0;
 
             return {
@@ -303,8 +304,10 @@ class RelatoriosService {
             const p = item.peca;
             const ped = item.pedido;
             const preco = parseFloat(item.valor_unitario_final || 0);
-            const loja = parseFloat(p.valor_comissao_loja || 0);
-            const custo = parseFloat(p.valor_liquido_fornecedor || 0);
+
+            // Force 50% split logic
+            const loja = preco * 0.5;
+            const custo = preco * 0.5;
             const margem = preco > 0 ? (loja / preco) * 100 : 0;
 
             return {
@@ -319,8 +322,8 @@ class RelatoriosService {
                 tam: p.tamanho ? p.tamanho.nome : '—',
                 tipo: p.tipo_aquisicao === 'CONSIGNACAO' ? 'share' : 'own',
                 preco,
-                taxa: 0, // Need logic
-                imposto: 0, // Need logic
+                taxa: 0,
+                imposto: 0,
                 repasse: custo,
                 loja,
                 margem,
@@ -394,7 +397,7 @@ class RelatoriosService {
             if (p.status === 'DISPONIVEL' || p.status === 'NOVA') {
                 totalDiasEstoque += diffDays;
                 countEstoque++;
-                if (diffDays <= 30) timeRanges['Até 30 dias']++;
+                if (diffDays <= 30) timeRanges['Até R$ 50']++;
                 else if (diffDays <= 60) timeRanges['31 a 60 dias']++;
                 else if (diffDays <= 90) timeRanges['61 a 90 dias']++;
                 else if (diffDays <= 180) timeRanges['91 a 180 dias']++;
@@ -505,7 +508,6 @@ class RelatoriosService {
             const qtd = parseInt(c.qtdCompras || 0);
             const ticket = qtd > 0 ? total / qtd : 0;
 
-            // Simple trend logic (placeholder)
             const tendencia = 'FLAT';
 
             return {
@@ -516,7 +518,7 @@ class RelatoriosService {
                 ultCompra: ultCompra.toLocaleDateString('pt-BR'),
                 dias,
                 status,
-                freq: 0, // Need more complex logic for frequency per month
+                freq: 0,
                 tendencia,
                 compras: total,
                 qtd,
@@ -555,6 +557,7 @@ class RelatoriosService {
             total: parseFloat(item.valor_unitario_final || 0)
         }));
     }
+
     async getDetalhesFornecedor(fornecedorId, inicio, fim) {
         const whereClause = {
             status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
@@ -567,12 +570,10 @@ class RelatoriosService {
         }
 
         const wherePeca = {};
-        // If fornecedorId is 'LOJA_PROPRIA' (or similar logic), handle it. 
-        // Assuming fornecedorId is passed. If it's a specific ID:
         if (fornecedorId && fornecedorId !== 'null') {
             wherePeca.fornecedorId = fornecedorId;
         } else {
-            wherePeca.fornecedorId = null; // Loja Própria
+            wherePeca.fornecedorId = null;
         }
 
         const itens = await ItemPedido.findAll({
@@ -595,7 +596,6 @@ class RelatoriosService {
             ]
         });
 
-        // Aggregations
         const catMap = {};
         const marcaMap = {};
         const pecasList = [];
@@ -624,9 +624,10 @@ class RelatoriosService {
         return {
             categorias,
             marcas,
-            pecas: pecasList.sort((a, b) => b.venda - a.venda) // Sort by order ID desc
+            pecas: pecasList.sort((a, b) => b.venda - a.venda)
         };
     }
+
     async getComissoes(inicio, fim, fornecedorId) {
         const whereClause = {
             status: { [Op.in]: ['PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE'] }
@@ -664,15 +665,11 @@ class RelatoriosService {
         return itens.map(item => {
             const p = item.peca;
             const venda = parseFloat(item.valor_unitario_final || 0);
-            let custo = parseFloat(p.valor_liquido_fornecedor || 0);
 
-            // Fallback: If stored cost is 0, calculate based on supplier default commission
-            if (custo === 0 && p.fornecedor) {
-                const comissaoPadrao = parseFloat(p.fornecedor.comissao_padrao || 50);
-                custo = (venda * comissaoPadrao) / 100;
-            }
+            // Always 50% of the sale price
+            const custo = venda * 0.5;
 
-            const comissao = custo; // Supplier Payout
+            const comissao = custo;
             const pct = venda > 0 ? (comissao / venda) * 100 : 0;
 
             return {
@@ -688,6 +685,7 @@ class RelatoriosService {
             };
         });
     }
+
     async getVendasRepasse(inicio, fim, fornecedorId) {
         const whereBase = {};
         if (inicio && fim) {
@@ -749,8 +747,11 @@ class RelatoriosService {
             const p = item.peca;
             const ped = item.pedido;
             const valor = parseFloat(item.valor_unitario_final || 0);
-            const loja = parseFloat(p.valor_comissao_loja || 0);
-            const custo = parseFloat(p.valor_liquido_fornecedor || 0);
+
+            // Force 50% split logic
+            const loja = valor * 0.5;
+            const custo = valor * 0.5;
+
             const comissaoPct = valor > 0 ? Math.round((loja / valor) * 100) : 0;
             const pagamentos = ped.pagamentos ? ped.pagamentos.map(pg => pg.metodo) : [];
 
@@ -775,6 +776,7 @@ class RelatoriosService {
             devolucoes: returnItems.map(mapItem)
         };
     }
+
     async getGradeEstoque(filters = {}) {
         const whereClause = {
             status: { [Op.in]: ['DISPONIVEL', 'NOVA', 'EM_AUTORIZACAO'] }
@@ -799,10 +801,9 @@ class RelatoriosService {
                 { model: Categoria, as: 'categoria', attributes: ['nome'] },
                 { model: Tamanho, as: 'tamanho', attributes: ['nome'] }
             ],
-            attributes: ['id']
+            attributes: ['id', 'categoriaId', 'tamanhoId']
         });
 
-        // Build Matrix
         const matrix = {};
         const sizesSet = new Set();
 
@@ -817,14 +818,11 @@ class RelatoriosService {
             matrix[cat][tam]++;
         });
 
-        // Sort sizes (custom logic might be needed for S, M, L vs 38, 40, 42)
         const sortedSizes = Array.from(sizesSet).sort((a, b) => {
-            // Try to sort numbers
             const numA = parseInt(a);
             const numB = parseInt(b);
             if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
 
-            // Sort standard sizes
             const order = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'UN'];
             const idxA = order.indexOf(a);
             const idxB = order.indexOf(b);
@@ -853,13 +851,6 @@ class RelatoriosService {
         }
 
         const wherePeca = {};
-        if (categoriaId && categoriaId !== 'all') {
-            // Assuming we can filter by category name or ID. Let's assume ID for now or join.
-            // If the frontend sends 'letras'/'numeros', we might need logic here.
-            // For now, let's support direct Category ID filtering if passed, or ignore if 'all'.
-            // If 'letras'/'numeros' is passed, we'd need to filter by size name pattern, which is complex in SQL.
-            // Let's stick to simple Category ID filter if provided, otherwise all.
-        }
 
         const vendas = await ItemPedido.findAll({
             attributes: [
@@ -892,7 +883,6 @@ class RelatoriosService {
             const valor = parseFloat(v.valor || 0);
             const ticket = qtd > 0 ? valor / qtd : 0;
 
-            // Determine category type based on size name for frontend filtering
             let category = 'unico';
             const size = v.tamanho || 'UN';
             if (['PP', 'P', 'M', 'G', 'GG', 'XG'].includes(size)) category = 'letras';
@@ -942,7 +932,6 @@ class RelatoriosService {
             dataEntrada: p.data_entrada ? new Date(p.data_entrada).toLocaleDateString('pt-BR') : '-'
         }));
     }
-
 }
 
 module.exports = new RelatoriosService();
