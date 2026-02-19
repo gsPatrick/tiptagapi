@@ -165,6 +165,17 @@ class PessoasService {
 
         const { endereco, contasBancarias, perfilComportamental, ...pessoaData } = data;
 
+        // Sanitize date fields - convert invalid values to null
+        const dateFields = ['data_nascimento'];
+        dateFields.forEach(field => {
+            if (pessoaData[field] !== undefined) {
+                const val = pessoaData[field];
+                if (!val || val === '' || val === 'Invalid date' || val === 'Invalid Date' || isNaN(new Date(val).getTime())) {
+                    pessoaData[field] = null;
+                }
+            }
+        });
+
         await pessoa.update(pessoaData);
 
         if (endereco) {
@@ -175,9 +186,6 @@ class PessoasService {
                 await Endereco.create({ ...endereco, pessoaId: id });
             }
         }
-
-        // For simplicity, we are not handling full sync of nested arrays here, just addition or update if logic provided.
-        // In a real app, we might need to delete removed accounts.
 
         return this.getById(id);
     }

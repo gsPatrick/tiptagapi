@@ -63,17 +63,23 @@ class PessoasController {
 
     async uploadFoto(req, res) {
         try {
+            console.log('[uploadFoto] req.file:', req.file);
+            console.log('[uploadFoto] req.params:', req.params);
+
             if (!req.file) {
-                return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+                console.error('[uploadFoto] No file received. Check field name and Content-Type.');
+                return res.status(400).json({ error: 'Nenhum arquivo enviado. Verifique o formato da imagem (JPEG, PNG, WEBP).' });
             }
             const { id } = req.params;
 
-            // Salvar caminho relativo (o frontend monta a URL completa com a baseURL da API)
+            // Salvar caminho relativo
             const fileUrl = `uploads/${req.file.filename}`;
+            console.log('[uploadFoto] Saving fileUrl:', fileUrl, 'for person ID:', id);
 
             const pessoa = await pessoasService.update(id, { foto: fileUrl });
             return res.json(pessoa);
         } catch (err) {
+            console.error('[uploadFoto] Error:', err);
             return res.status(500).json({ error: err.message });
         }
     }
