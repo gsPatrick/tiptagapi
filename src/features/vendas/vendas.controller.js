@@ -93,6 +93,17 @@ class VendasController {
         }
     }
 
+    async atualizarPrecoItemSacolinha(req, res) {
+        try {
+            const { id, pecaId } = req.params;
+            const { preco } = req.body;
+            const result = await vendasService.atualizarPrecoItemSacolinha(parseInt(id), parseInt(pecaId), preco);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     async getItensVendidos(req, res) {
         try {
             const { search } = req.query;

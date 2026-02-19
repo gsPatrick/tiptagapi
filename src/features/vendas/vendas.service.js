@@ -38,7 +38,7 @@ class VendasService {
                 }
                 pecasMap.set(item.pecaId, peca);
 
-                const precoOriginal = item.valor_unitario_venda || peca.preco_venda;
+                const precoOriginal = item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda;
                 valorTotalOriginal += parseFloat(precoOriginal);
             }
 
@@ -66,7 +66,8 @@ class VendasService {
             for (const item of itens) {
                 const peca = pecasMap.get(item.pecaId); // Already fetched
 
-                const valorOriginal = parseFloat(item.valor_unitario_venda || peca.preco_venda);
+                // Priority: Frontend Payload > Sacolinha Price > Original Catalog Price
+                const valorOriginal = parseFloat(item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda);
 
                 // Apply Discount
                 const valorVendaFinal = valorOriginal * fatorDesconto;
@@ -536,7 +537,7 @@ class VendasService {
     }
 
 
-    async adicionarItemSacolinha(sacolinhaId, pecaId) {
+    async adicionarItemSacolinha(sacolinhaId, pecaId, preco = null) {
         const sacolinha = await Sacolinha.findByPk(sacolinhaId);
         if (!sacolinha) throw new Error('Sacolinha não encontrada');
         if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível adicionar itens em sacolinhas abertas');
@@ -550,6 +551,9 @@ class VendasService {
         }
 
         if (peca.status === 'VENDIDA') throw new Error('Peça já foi vendida');
+
+        // Use provided price or default to current sale price
+        const precoFinal = preco !== null ? preco : peca.preco_venda;
 
         if (peca.quantidade > 1) {
             // Lógica de desmembramento (Split): Se tem mais de 1, tira 1 do estoque e cria um registro para a sacolinha
@@ -566,7 +570,8 @@ class VendasService {
                 quantidade: 1,
                 quantidade_inicial: 1,
                 status: 'RESERVADA_SACOLINHA',
-                sacolinhaId: sacolinhaId
+                sacolinhaId: sacolinhaId,
+                preco_venda_sacolinha: precoFinal
             };
 
             // Ajusta o código de etiqueta para evitar erro de UNIQUE no banco
@@ -580,11 +585,25 @@ class VendasService {
             // Lógica padrão: apenas muda o status e associa
             await peca.update({
                 sacolinhaId: sacolinhaId,
-                status: 'RESERVADA_SACOLINHA'
+                status: 'RESERVADA_SACOLINHA',
+                preco_venda_sacolinha: precoFinal
             });
 
             return { message: 'Peça adicionada à sacolinha', peca };
         }
+    }
+
+    async atualizarPrecoItemSacolinha(sacolinhaId, pecaId, novoPreco) {
+        const sacolinha = await Sacolinha.findByPk(sacolinhaId);
+        if (!sacolinha) throw new Error('Sacolinha não encontrada');
+        if (sacolinha.status !== 'ABERTA') throw new Error('Só é possível alterar preços em sacolinhas abertas');
+
+        const peca = await Peca.findByPk(pecaId);
+        if (!peca) throw new Error('Peça não encontrada');
+        if (peca.sacolinhaId !== parseInt(sacolinhaId)) throw new Error('Peça não pertence a esta sacolinha');
+
+        await peca.update({ preco_venda_sacolinha: novoPreco });
+        return { message: 'Preço atualizado com sucesso', peca };
     }
 
     async removerItemSacolinha(sacolinhaId, pecaId) {

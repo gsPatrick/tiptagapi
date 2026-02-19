@@ -13,6 +13,7 @@ router.put('/sacolinhas/:id/status', vendasController.atualizarStatusSacolinha);
 router.delete('/sacolinhas/:id', vendasController.excluirSacolinha);
 router.post('/sacolinhas/:id/itens', vendasController.adicionarItemSacolinha);
 router.delete('/sacolinhas/:id/itens/:pecaId', vendasController.removerItemSacolinha);
+router.put('/sacolinhas/:id/itens/:pecaId/preco', vendasController.atualizarPrecoItemSacolinha);
 
 router.put('/sacolinhas/:id/fechar', vendasController.fecharSacolinha);
 

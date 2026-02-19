@@ -103,6 +103,16 @@ class CatalogoController {
             return res.status(500).json({ error: err.message });
         }
     }
+
+    async reportAvaria(req, res) {
+        try {
+            const { pecaId, mensagemAdicional, supplierId } = req.body;
+            const result = await catalogoService.reportAvaria(pecaId, mensagemAdicional, supplierId);
+            return res.json(result);
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 module.exports = new CatalogoController();

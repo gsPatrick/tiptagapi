@@ -481,6 +481,46 @@ class CatalogoService {
             order: [['data_entrada', 'ASC']]
         });
     }
+
+    async reportAvaria(pecaId, mensagemAdicional, supplierId) {
+        const { Notificacao } = require('../../models');
+        let telefone, nomeFornecedor, itemDesc = '';
+
+        if (pecaId) {
+            const peca = await Peca.findByPk(pecaId, {
+                include: [{ model: Pessoa, as: 'fornecedor' }]
+            });
+            if (!peca) throw new Error('Peça não encontrada');
+            if (!peca.fornecedor) throw new Error('Esta peça não possui fornecedor vinculado');
+
+            telefone = peca.fornecedor.telefone_whatsapp;
+            nomeFornecedor = peca.fornecedor.nome;
+            itemDesc = `*${peca.descricao_curta}* (TAG: ${peca.codigo_etiqueta})`;
+        } else if (supplierId) {
+            const supplier = await Pessoa.findByPk(supplierId);
+            if (!supplier) throw new Error('Fornecedor não encontrado');
+            telefone = supplier.telefone_whatsapp;
+            nomeFornecedor = supplier.nome;
+            itemDesc = 'um ou mais itens do seu lote';
+        } else {
+            throw new Error('É necessário informar a peça ou o fornecedor');
+        }
+
+        if (!telefone) throw new Error('Fornecedor não possui telefone WhatsApp cadastrado');
+
+        const whatsappProvider = require('../../providers/whatsapp.provider');
+        const msg = `Olá! Tudo bem?\n\nFinalizamos a curadoria das peças recebidas e tivemos alguns itens que não vamos permanecer.\n\nGostaríamos de saber se vocês preferem vir retirá-los em até 7 dias ou se podemos encaminhá-los para doação.\n\nFicamos no aguardo da orientação de vocês.\n\n♻️ *Garimpo Nós*`;
+
+        const result = await whatsappProvider.enviarTexto(telefone, msg);
+
+        // Also create a system notification for the admin
+        await Notificacao.create({
+            mensagem: `AVARIA: Alerta enviado para ${nomeFornecedor} sobre avaria detectada.`,
+            tipo: 'ALERTA'
+        });
+
+        return { message: 'Aviso de avaria enviado ao fornecedor', result };
+    }
 }
 
 module.exports = new CatalogoService();

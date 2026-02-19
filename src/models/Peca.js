@@ -161,6 +161,11 @@ module.exports = (sequelize, DataTypes) => {
             references: { model: 'sacolinhas', key: 'id' },
             allowNull: true,
         },
+        preco_venda_sacolinha: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true,
+            comment: 'Preço negociado especificamente para a sacolinha'
+        },
     }, {
         sequelize,
         modelName: 'Peca',

@@ -1,103 +1,68 @@
-const { Peca, Pedido, ItemPedido, MovimentacaoEstoque, ContaCorrentePessoa, PagamentoPedido, sequelize } = require('../src/models');
+require('dotenv').config();
+const { Pedido, PagamentoPedido, ItemPedido, Peca, Sacolinha, MovimentacaoEstoque, MovimentacaoCaixaDiario } = require('../src/models');
 const { Op } = require('sequelize');
 
 async function cleanup() {
-    const t = await sequelize.transaction();
-    try {
-        console.log('Starting cleanup of TEST data...');
+    console.log('--- STARTING CLEANUP ---');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-        // 1. Find Test Items
-        const testItems = await Peca.findAll({
-            where: {
-                codigo_etiqueta: { [Op.like]: 'TEST-%' }
-            },
-            transaction: t
-        });
+    // 1. Find pieces involved in today's sales
+    const pedidos = await Pedido.findAll({
+        where: { createdAt: { [Op.gte]: today } }
+    });
+    const pedidoIds = pedidos.map(p => p.id);
 
-        const itemIds = testItems.map(i => i.id);
-        console.log(`Found ${itemIds.length} test items:`, testItems.map(i => i.codigo_etiqueta));
+    console.log(`Cleaning up ${pedidoIds.length} pedidos...`);
 
-        if (itemIds.length === 0) {
-            console.log('No test data found.');
-            await t.rollback();
-            return;
+    for (const pedidoId of pedidoIds) {
+        const itens = await ItemPedido.findAll({ where: { pedidoId } });
+        for (const item of itens) {
+            // Restore Piece
+            await Peca.update(
+                { status: 'DISPONIVEL', data_venda: null, data_saida_estoque: null, sacolinhaId: null },
+                { where: { id: item.pecaId } }
+            );
         }
 
-        // 2. Find Related Orders via ItemPedido
-        const itemPedidos = await ItemPedido.findAll({
-            where: { pecaId: itemIds },
-            transaction: t
-        });
+        // Delete related movements
+        await MovimentacaoEstoque.destroy({ where: { pecaId: itens.map(i => i.pecaId), createdAt: { [Op.gte]: today } } });
 
-        const orderIds = [...new Set(itemPedidos.map(ip => ip.pedidoId))];
-        console.log(`Found ${orderIds.length} related orders:`, orderIds);
+        // Delete payments
+        await PagamentoPedido.destroy({ where: { pedidoId } });
 
-        // 3. Delete Financial Records (ContaCorrentePessoa) linked to Items or Orders
-        // Linked to Item (Credit)
-        await ContaCorrentePessoa.destroy({
-            where: {
-                referencia_origem: itemIds,
-                tipo: 'CREDITO',
-                descricao: { [Op.like]: 'Venda peça TEST-%' }
-            },
-            transaction: t
-        });
+        // Delete items
+        await ItemPedido.destroy({ where: { pedidoId } });
 
-        // Linked to Order (Debito or Payment Credit)
-        if (orderIds.length > 0) {
-            await ContaCorrentePessoa.destroy({
-                where: {
-                    referencia_origem: orderIds,
-                    [Op.or]: [
-                        { descricao: { [Op.like]: 'Uso de crédito Pedido PDV-%' } },
-                        { descricao: { [Op.like]: 'Venda PDV PDV-%' } }
-                    ]
-                },
-                transaction: t
-            });
-        }
-
-        // 4. Delete Stock Movements
-        await MovimentacaoEstoque.destroy({
-            where: { pecaId: itemIds },
-            transaction: t
-        });
-
-        // 5. Delete ItemPedido
-        await ItemPedido.destroy({
-            where: { pecaId: itemIds },
-            transaction: t
-        });
-
-        // 6. Delete PagamentoPedido
-        if (orderIds.length > 0) {
-            await PagamentoPedido.destroy({
-                where: { pedidoId: orderIds },
-                transaction: t
-            });
-
-            // 7. Delete Pedido
-            await Pedido.destroy({
-                where: { id: orderIds },
-                transaction: t
-            });
-        }
-
-        // 8. Delete Peca
-        await Peca.destroy({
-            where: { id: itemIds },
-            transaction: t
-        });
-
-        await t.commit();
-        console.log('Cleanup completed successfully.');
-
-    } catch (error) {
-        await t.rollback();
-        console.error('Error during cleanup:', error);
-    } finally {
-        await sequelize.close();
+        // Delete Pedido
+        await Pedido.destroy({ where: { id: pedidoId } });
     }
+
+    // 2. Cleanup Sacolinhas
+    const sacolinhas = await Sacolinha.findAll({
+        where: { createdAt: { [Op.gte]: today } }
+    });
+    console.log(`Cleaning up ${sacolinhas.length} sacolinhas...`);
+
+    for (const sac of sacolinhas) {
+        // Release pieces
+        await Peca.update(
+            { sacolinhaId: null, status: 'DISPONIVEL' },
+            { where: { sacolinhaId: sac.id } }
+        );
+        // Delete sacolinha
+        await sac.destroy({ force: true });
+    }
+
+    // 3. Cleanup Caixa Movements (optional but good for balance)
+    await MovimentacaoCaixaDiario.destroy({
+        where: { createdAt: { [Op.gte]: today }, descricao: { [Op.like]: '%Pedido%' } }
+    });
+
+    console.log('--- CLEANUP COMPLETE ---');
 }
 
-cleanup();
+cleanup().then(() => process.exit(0)).catch(err => {
+    console.error(err);
+    process.exit(1);
+});

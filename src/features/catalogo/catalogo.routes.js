@@ -15,6 +15,7 @@ router.get('/pecas/:id', catalogoController.getPecaById);
 router.put('/pecas/:id', catalogoController.updatePeca);
 router.delete('/pecas/:id', catalogoController.deletePeca);
 router.post('/pecas/:id/sync', catalogoController.syncPeca);
+router.post('/pecas/report-avaria', catalogoController.reportAvaria);
 router.get('/marcas', catalogoController.getAllMarcas);
 router.post('/etiquetas', catalogoController.generateEtiquetas);
 
