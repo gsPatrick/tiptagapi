@@ -146,10 +146,16 @@ class CatalogoService {
         }
 
         if (search) {
-            const isNumeric = !isNaN(search) && search.trim() !== "";
+            let normalizedSearch = search.trim();
+            // Handle "TAG 123" -> "TAG-123"
+            if (/^TAG\s+\d+$/i.test(normalizedSearch)) {
+                normalizedSearch = normalizedSearch.replace(/\s+/, '-').toUpperCase();
+            }
+
+            const isNumeric = !isNaN(normalizedSearch) && normalizedSearch !== "";
             const searchOr = [
-                { descricao_curta: { [Op.iLike]: `%${search}%` } },
-                { codigo_etiqueta: { [Op.iLike]: `%${search}%` } }
+                { descricao_curta: { [Op.iLike]: `%${normalizedSearch}%` } },
+                { codigo_etiqueta: { [Op.iLike]: `%${normalizedSearch}%` } }
             ];
 
             if (isNumeric) {

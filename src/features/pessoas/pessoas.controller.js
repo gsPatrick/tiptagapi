@@ -92,7 +92,7 @@ class PessoasController {
             const fileData = {
                 nome_exibicao: nome_exibicao || req.file.originalname,
                 nome_arquivo: req.file.originalname,
-                caminho: req.file.path,
+                caminho: `uploads/${req.file.filename}`,
                 mimetype: req.file.mimetype,
                 tamanho: req.file.size
             };
