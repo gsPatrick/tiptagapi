@@ -7,19 +7,58 @@ class PessoasService {
     async create(data) {
         const { endereco, contasBancarias, perfilComportamental, ...pessoaData } = data;
 
-        const pessoa = await Pessoa.create(pessoaData);
+        // Check if exists (paranoid: false to include deleted)
+        let pessoa = await Pessoa.findOne({
+            where: {
+                [Op.or]: [
+                    { cpf_cnpj: pessoaData.cpf_cnpj },
+                    { email: pessoaData.email }
+                ]
+            },
+            paranoid: false
+        });
+
+        if (pessoa) {
+            if (pessoa.deletedAt) {
+                // Restore and update
+                await pessoa.restore();
+                await pessoa.update(pessoaData);
+            } else {
+                // Determine which field is duplicate
+                if (pessoa.cpf_cnpj === pessoaData.cpf_cnpj) throw new Error('CPF/CNPJ já cadastrado.');
+                if (pessoa.email === pessoaData.email) throw new Error('E-mail já cadastrado.');
+            }
+        } else {
+            // Create new
+            pessoa = await Pessoa.create(pessoaData);
+        }
 
         if (endereco) {
-            await Endereco.create({ ...endereco, pessoaId: pessoa.id });
+            const existingEndereco = await Endereco.findOne({ where: { pessoaId: pessoa.id } });
+            if (existingEndereco) {
+                await existingEndereco.update(endereco);
+            } else {
+                await Endereco.create({ ...endereco, pessoaId: pessoa.id });
+            }
         }
 
         if (contasBancarias && contasBancarias.length > 0) {
+            // Clear old ones if restoring, or just add new ones? 
+            // For simplicity in restore scenario, we might want to keep old ones or wipe them.
+            // Let's destroy existing to ensure clean state on restore
+            await ContaBancariaPessoa.destroy({ where: { pessoaId: pessoa.id } });
+
             const contas = contasBancarias.map(c => ({ ...c, pessoaId: pessoa.id }));
             await ContaBancariaPessoa.bulkCreate(contas);
         }
 
         if (perfilComportamental) {
-            await PerfilComportamental.create({ ...perfilComportamental, pessoaId: pessoa.id });
+            const existingPerfil = await PerfilComportamental.findOne({ where: { pessoaId: pessoa.id } });
+            if (existingPerfil) {
+                await existingPerfil.update(perfilComportamental);
+            } else {
+                await PerfilComportamental.create({ ...perfilComportamental, pessoaId: pessoa.id });
+            }
         }
 
         return this.getById(pessoa.id);
