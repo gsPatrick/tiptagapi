@@ -6,6 +6,9 @@ class PessoasController {
             const pessoa = await pessoasService.create(req.body);
             return res.status(201).json(pessoa);
         } catch (err) {
+            if (err.errors && Array.isArray(err.errors)) {
+                return res.status(400).json({ error: err.errors[0].message });
+            }
             return res.status(400).json({ error: err.message });
         }
     }
