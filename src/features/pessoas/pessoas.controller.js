@@ -68,10 +68,8 @@ class PessoasController {
             }
             const { id } = req.params;
 
-            // Construct full URL
-            const protocol = req.protocol;
-            const host = req.get('host');
-            const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+            // Salvar caminho relativo (o frontend monta a URL completa com a baseURL da API)
+            const fileUrl = `uploads/${req.file.filename}`;
 
             const pessoa = await pessoasService.update(id, { foto: fileUrl });
             return res.json(pessoa);
