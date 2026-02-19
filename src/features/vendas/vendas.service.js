@@ -33,7 +33,7 @@ class VendasService {
 
             for (const item of itens) {
                 const peca = await Peca.findByPk(item.pecaId, { transaction: t });
-                if (!peca || !['DISPONIVEL', 'A_VENDA', 'NOVA', 'RESERVADA_SACOLINHA'].includes(peca.status)) {
+                if (!peca || !['DISPONIVEL', 'A_VENDA', 'RESERVADA_SACOLINHA'].includes(peca.status)) {
                     throw new Error(`Peça ${item.pecaId} indisponível`);
                 }
                 pecasMap.set(item.pecaId, peca);

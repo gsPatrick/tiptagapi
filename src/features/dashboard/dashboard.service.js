@@ -97,10 +97,9 @@ class DashboardService {
         const thirtyDaysAgo = subDays(new Date(), 30);
         const twelveMonthsAgo = subDays(new Date(), 365);
 
-        // KPIs
-        const novas = await Peca.count({ where: { status: 'NOVA' } });
-        const novas30d = await Peca.count({ where: { status: 'NOVA', data_entrada: { [Op.gte]: thirtyDaysAgo } } });
-        const novasOntem = await Peca.count({ where: { status: 'NOVA', data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } });
+        // KPIs (Baseado em novos registros, já que NOVA não é mais usado como status padrão)
+        const registradas30d = await Peca.count({ where: { data_entrada: { [Op.gte]: thirtyDaysAgo } } });
+        const registradasOntem = await Peca.count({ where: { data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } });
 
         const emAutorizacao = await Peca.count({ where: { status: 'EM_AUTORIZACAO' } });
         const autorizadasOntem = await Peca.count({ where: { status: 'DISPONIVEL', data_entrada: { [Op.between]: [yesterdayStart, yesterdayEnd] } } }); // Approx
@@ -112,7 +111,7 @@ class DashboardService {
 
         // Resumo Geral
         const estoqueTotal = await Peca.count();
-        const valorEstoque = await Peca.sum('preco_venda', { where: { status: { [Op.in]: ['NOVA', 'DISPONIVEL', 'EM_AUTORIZACAO'] } } });
+        const valorEstoque = await Peca.sum('preco_venda', { where: { status: { [Op.in]: ['DISPONIVEL', 'EM_AUTORIZACAO'] } } });
 
         const vendas12mOrders = await Pedido.findAll({
             where: { status: 'PAGO', data_pedido: { [Op.gte]: twelveMonthsAgo } },
@@ -178,9 +177,9 @@ class DashboardService {
 
         return {
             kpis: {
-                novas,
-                novas30d,
-                novasOntem,
+                novas: registradas30d,
+                novas30d: registradas30d,
+                novasOntem: registradasOntem,
                 emAutorizacao,
                 autorizadasOntem,
                 aVenda,

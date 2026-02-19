@@ -26,8 +26,7 @@ const pushToEcommerce = async () => {
 
         const pecasToSync = await Peca.findAll({
             where: {
-                updatedAt: { [Op.gte]: tenMinutesAgo },
-                status: { [Op.not]: 'NOVA' } // Não envia peças que ainda estão sendo cadastradas
+                updatedAt: { [Op.gte]: tenMinutesAgo }
             },
             include: ['tamanho', 'cor', 'marca', 'categoria'],
             limit: 20 // Processa em lotes pequenos

@@ -147,19 +147,21 @@ class CatalogoService {
 
         if (search) {
             let normalizedSearch = search.trim();
-            // Handle "TAG 123" -> "TAG-123"
-            if (/^TAG\s+\d+$/i.test(normalizedSearch)) {
-                normalizedSearch = normalizedSearch.replace(/\s+/, '-').toUpperCase();
+            // Handle variations: "TAG 123", "TAG123", "TAG-123" -> "TAG-123"
+            if (/^TAG\s*[- ]?\s*\d+$/i.test(normalizedSearch)) {
+                const digits = normalizedSearch.match(/\d+/)[0];
+                normalizedSearch = `TAG-${digits}`;
             }
 
-            const isNumeric = !isNaN(normalizedSearch) && normalizedSearch !== "";
             const searchOr = [
                 { descricao_curta: { [Op.iLike]: `%${normalizedSearch}%` } },
-                { codigo_etiqueta: { [Op.iLike]: `%${normalizedSearch}%` } }
+                { codigo_etiqueta: { [Op.iLike]: `%${normalizedSearch.toUpperCase()}%` } },
+                { sku_ecommerce: { [Op.iLike]: `%${normalizedSearch}%` } }
             ];
 
+            const isNumeric = !isNaN(normalizedSearch) && normalizedSearch !== "" && /^\d+$/.test(normalizedSearch);
             if (isNumeric) {
-                searchOr.unshift({ id: parseInt(search) });
+                searchOr.unshift({ id: parseInt(normalizedSearch) });
             }
 
             where[Op.or] = searchOr;

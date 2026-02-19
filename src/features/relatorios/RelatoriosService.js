@@ -394,7 +394,7 @@ class RelatoriosService {
             const diffTime = Math.abs(now - entrada);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            if (p.status === 'DISPONIVEL' || p.status === 'NOVA') {
+            if (p.status === 'DISPONIVEL') {
                 totalDiasEstoque += diffDays;
                 countEstoque++;
                 if (diffDays <= 30) timeRanges['Até R$ 50']++;
@@ -429,7 +429,7 @@ class RelatoriosService {
             const s = p.fornecedorNome || 'LOJA PRÓPRIA';
             if (!supMap[s]) supMap[s] = { nome: s, estoque: 0, vendidas: 0, valor: 0, margemTotal: 0, countMargem: 0 };
 
-            if (p.status === 'DISPONIVEL' || p.status === 'NOVA') {
+            if (p.status === 'DISPONIVEL') {
                 supMap[s].estoque++;
                 supMap[s].valor += parseFloat(p.preco_venda || 0);
             } else if (p.status === 'VENDIDA') {
@@ -822,7 +822,7 @@ class RelatoriosService {
 
     async getGradeEstoque(filters = {}) {
         const whereClause = {
-            status: { [Op.in]: ['DISPONIVEL', 'NOVA', 'EM_AUTORIZACAO'] }
+            status: { [Op.in]: ['DISPONIVEL', 'EM_AUTORIZACAO'] }
         };
 
         if (filters.fornecedorId && filters.fornecedorId !== 'todos') {
