@@ -312,6 +312,7 @@ class RelatoriosService {
 
             return {
                 id: p.id,
+                pedidoId: ped.id,
                 idAlt: p.codigo_etiqueta || '—',
                 desc: p.descricao_curta,
                 fornecedor: p.fornecedor ? p.fornecedor.nome : 'LOJA PRÓPRIA',

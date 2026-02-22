@@ -21,5 +21,6 @@ router.get('/itens-vendidos', vendasController.getItensVendidos);
 router.post('/devolucao', vendasController.processarDevolucao);
 router.get('/devolucoes', vendasController.getDevolucoes);
 router.get('/pedidos', vendasController.getPedidos);
+router.delete('/pedidos/:id', vendasController.cancelarVenda);
 
 module.exports = router;

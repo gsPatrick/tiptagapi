@@ -814,6 +814,72 @@ class VendasService {
             }))
         }));
     }
+    async cancelarVenda(pedidoId) {
+        const t = await sequelize.transaction();
+        try {
+            const pedido = await Pedido.findByPk(pedidoId, {
+                include: [
+                    { model: ItemPedido, as: 'itens', include: [{ model: Peca, as: 'peca' }] },
+                    { model: PagamentoPedido, as: 'pagamentos' }
+                ],
+                transaction: t
+            });
+            if (!pedido) throw new Error('Pedido não encontrado');
+
+            // 1. Restore all pieces to DISPONIVEL
+            for (const item of pedido.itens) {
+                if (item.peca) {
+                    await item.peca.update({
+                        status: 'DISPONIVEL',
+                        data_venda: null,
+                        quantidade: 1
+                    }, { transaction: t });
+
+                    // Reverse supplier commission if consignment
+                    if (item.peca.tipo_aquisicao === 'CONSIGNACAO' && item.peca.fornecedorId) {
+                        const creditoOriginal = await ContaCorrentePessoa.findOne({
+                            where: {
+                                pessoaId: item.peca.fornecedorId,
+                                tipo: 'CREDITO',
+                                referencia_origem: item.peca.id,
+                                descricao: { [Op.like]: '%Venda peça%' }
+                            },
+                            order: [['createdAt', 'DESC']],
+                            transaction: t
+                        });
+                        if (creditoOriginal) {
+                            await ContaCorrentePessoa.create({
+                                pessoaId: item.peca.fornecedorId,
+                                tipo: 'DEBITO',
+                                valor: parseFloat(creditoOriginal.valor),
+                                descricao: `Cancelamento venda ${pedido.codigo_pedido} - peça ${item.peca.codigo_etiqueta}`,
+                                referencia_origem: item.peca.id,
+                                data_movimento: new Date()
+                            }, { transaction: t });
+                        }
+                    }
+                }
+            }
+
+            // 2. Delete payments
+            await PagamentoPedido.destroy({ where: { pedidoId }, transaction: t, force: true });
+
+            // 3. Delete financial movements
+            await ContaCorrentePessoa.destroy({ where: { referencia_origem: pedidoId, descricao: { [Op.like]: `%${pedido.codigo_pedido}%` } }, transaction: t, force: true });
+
+            // 4. Delete order items
+            await ItemPedido.destroy({ where: { pedidoId }, transaction: t, force: true });
+
+            // 5. Delete the order
+            await Pedido.destroy({ where: { id: pedidoId }, transaction: t, force: true });
+
+            await t.commit();
+            return { message: `Venda ${pedido.codigo_pedido} cancelada com sucesso` };
+        } catch (err) {
+            await t.rollback();
+            throw err;
+        }
+    }
 }
 
 module.exports = new VendasService();
