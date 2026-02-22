@@ -176,6 +176,24 @@ class PessoasService {
             }
         });
 
+        // Sanitize unique fields - convert empty strings to null to avoid unique constraint errors
+        const uniqueFields = ['email', 'cpf_cnpj'];
+        uniqueFields.forEach(field => {
+            if (pessoaData[field] !== undefined && (!pessoaData[field] || pessoaData[field].trim() === '')) {
+                pessoaData[field] = null;
+            }
+        });
+
+        // Sanitize numeric fields
+        if (pessoaData.dia_fechamento_pagamento !== undefined) {
+            const val = parseInt(pessoaData.dia_fechamento_pagamento);
+            pessoaData.dia_fechamento_pagamento = isNaN(val) ? 15 : val;
+        }
+        if (pessoaData.comissao_padrao !== undefined) {
+            const val = parseFloat(pessoaData.comissao_padrao);
+            pessoaData.comissao_padrao = isNaN(val) ? 50.00 : val;
+        }
+
         await pessoa.update(pessoaData);
 
         if (endereco) {

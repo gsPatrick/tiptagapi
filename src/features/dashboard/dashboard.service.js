@@ -110,7 +110,7 @@ class DashboardService {
         const vendidas30d = await Peca.count({ where: { status: 'VENDIDA', data_venda: { [Op.gte]: thirtyDaysAgo } } });
 
         // Resumo Geral
-        const estoqueTotal = await Peca.count();
+        const estoqueTotal = await Peca.count({ where: { status: { [Op.in]: ['DISPONIVEL', 'EM_AUTORIZACAO'] } } });
         const valorEstoque = await Peca.sum('preco_venda', { where: { status: { [Op.in]: ['DISPONIVEL', 'EM_AUTORIZACAO'] } } });
 
         const vendas12mOrders = await Pedido.findAll({
