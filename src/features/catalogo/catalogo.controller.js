@@ -96,7 +96,7 @@ class CatalogoController {
 
     async getExpiringPecas(req, res) {
         try {
-            const days = req.query.days ? parseInt(req.query.days) : 60;
+            const days = req.query.days ? parseInt(req.query.days) : 180;
             const pecas = await catalogoService.getExpiringPecas(days);
             return res.json(pecas);
         } catch (err) {

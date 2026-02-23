@@ -398,7 +398,7 @@ class RelatoriosService {
             if (p.status === 'DISPONIVEL') {
                 totalDiasEstoque += diffDays;
                 countEstoque++;
-                if (diffDays <= 30) timeRanges['Até R$ 50']++;
+                if (diffDays <= 30) timeRanges['Até 30 dias']++;
                 else if (diffDays <= 60) timeRanges['31 a 60 dias']++;
                 else if (diffDays <= 90) timeRanges['61 a 90 dias']++;
                 else if (diffDays <= 180) timeRanges['91 a 180 dias']++;
