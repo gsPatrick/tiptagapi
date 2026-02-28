@@ -33,13 +33,14 @@ class VendasService {
 
             for (const item of itens) {
                 const peca = await Peca.findByPk(item.pecaId, { transaction: t });
-                if (!peca || !['DISPONIVEL', 'A_VENDA', 'RESERVADA_SACOLINHA'].includes(peca.status)) {
+                if (!peca || !['DISPONIVEL', 'A_VENDA', 'RESERVADA_SACOLINHA', 'RESERVADA_ECOMMERCE'].includes(peca.status)) {
                     throw new Error(`Peça ${item.pecaId} indisponível`);
                 }
                 pecasMap.set(item.pecaId, peca);
 
-                const precoOriginal = item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda;
-                valorTotalOriginal += parseFloat(precoOriginal);
+                // Reference price for discount calculation is the negotiated Sacolinha price or the Catalog price.
+                const precoReferencia = peca.preco_venda_sacolinha || peca.preco_venda;
+                valorTotalOriginal += parseFloat(precoReferencia);
             }
 
             // Calculate Discount Factor (Cap at 1.0)
@@ -66,10 +67,10 @@ class VendasService {
             for (const item of itens) {
                 const peca = pecasMap.get(item.pecaId); // Already fetched
 
-                // Priority: Frontend Payload > Sacolinha Price > Original Catalog Price
-                const valorOriginal = parseFloat(item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda);
+                // Base price for this transaction
+                const valorOriginal = parseFloat(peca.preco_venda_sacolinha || peca.preco_venda);
 
-                // Apply Discount
+                // Apply Discount Factor
                 const valorVendaFinal = valorOriginal * fatorDesconto;
 
                 subtotalReal += valorVendaFinal;
@@ -79,7 +80,8 @@ class VendasService {
                 const novaQuantidade = peca.quantidade - 1;
                 const updateData = {
                     quantidade: novaQuantidade,
-                    sacolinhaId: sacolinhaId || peca.sacolinhaId // Ensure association is saved/preserved
+                    sacolinhaId: sacolinhaId || peca.sacolinhaId, // Ensure association is saved/preserved
+                    valor_venda_final: valorVendaFinal // PERSIST SOLD PRICE
                 };
 
                 if (novaQuantidade <= 0) {
@@ -245,46 +247,11 @@ class VendasService {
             }
 
             await pedido.update({
-                subtotal: valorTotalOriginal, // Keep original subtotal
-                total: totalPago,
+                subtotal: valorTotalOriginal, // Catalog price sum
+                desconto: Math.max(0, valorTotalOriginal - totalPago), // Total applied discount
+                total: totalPago, // Final paid amount
             }, { transaction: t });
 
-            // --- CASHBACK LOGIC ---
-            // Verifica se houve pagamento com Voucher ou Crédito Loja
-            const pagouComCredito = pagamentos.some(p => ['VOUCHER_PERMUTA', 'CREDITO_LOJA'].includes(p.metodo));
-            let valorCashback = 0;
-
-            if (clienteId && !pagouComCredito) {
-                const configDia = await Configuracao.findByPk('CASHBACK_DIA_RESET', { transaction: t });
-                const configHora = await Configuracao.findByPk('CASHBACK_HORA_RESET', { transaction: t });
-
-                const diaReset = configDia ? parseInt(configDia.valor) : 1;
-                const horaResetStr = configHora ? configHora.valor : '00:00';
-                const [horaReset, minReset] = horaResetStr.split(':').map(Number);
-
-                const now = new Date();
-                let validade = setDate(now, diaReset);
-                validade = setHours(validade, horaReset || 0);
-                validade = setMinutes(validade, minReset || 0);
-                validade = setSeconds(validade, 0);
-
-                if (isAfter(now, validade)) {
-                    validade = addMonths(validade, 1);
-                }
-
-                const cashbackPercent = 100;
-                valorCashback = (totalPago * cashbackPercent) / 100;
-
-                if (valorCashback > 0) {
-                    await CreditoLoja.create({
-                        clienteId,
-                        valor: valorCashback,
-                        data_validade: validade,
-                        status: 'ATIVO',
-                        codigo_cupom: `CASHBACK-${pedido.codigo_pedido}`
-                    }, { transaction: t });
-                }
-            }
             // ----------------------
 
             if (sacolinhaId) {
@@ -327,9 +294,7 @@ class VendasService {
                     if (cliente && cliente.telefone_whatsapp) {
 
                         const listaProdutos = itensResumo.map(i => `👗 ${i.nome} - R$ ${parseFloat(i.valor).toFixed(2)}`).join('\n');
-                        const msgCashback = valorCashback > 0 ? `\n✨ Credito ganho: R$ ${valorCashback.toFixed(2)}` : '';
-
-                        const mensagemBonita = `Olá ${cliente.nome}! 💖\nQue alegria ter você por aqui!\n\nAqui está o resumo das suas comprinhas:\n${listaProdutos}\n\n💰 Total: R$ ${totalPago.toFixed(2)}${msgCashback}\n\nObrigado por garimpar com a gente! ♻️`;
+                        const mensagemBonita = `Olá ${cliente.nome}! 💖\nQue alegria ter você por aqui!\n\nAqui está o resumo das suas comprinhas:\n${listaProdutos}\n\n💰 Total: R$ ${totalPago.toFixed(2)}\n\nObrigado por garimpar com a gente! ♻️`;
 
                         /*
                         await automacaoService.agendarMensagem({
@@ -704,15 +669,18 @@ class VendasService {
                 data_movimento: new Date()
             }, { transaction: t });
 
-            // Generate Credit for Client (Refund as Store Credit)
+            // Generate Credit (Refund as Store Credit) - ONLY FOR SUPPLIERS
             if (pedido.clienteId) {
-                await CreditoLoja.create({
-                    clienteId: pedido.clienteId,
-                    valor: itemPedido.valor_unitario_final,
-                    data_validade: addMonths(new Date(), 6),
-                    status: 'ATIVO',
-                    codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
-                }, { transaction: t });
+                const cliente = await Pessoa.findByPk(pedido.clienteId, { transaction: t });
+                if (cliente && cliente.is_fornecedor) {
+                    await CreditoLoja.create({
+                        clienteId: pedido.clienteId,
+                        valor: itemPedido.valor_unitario_final,
+                        data_validade: addMonths(new Date(), 6),
+                        status: 'ATIVO',
+                        codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
+                    }, { transaction: t });
+                }
             }
 
             // --- REVERSE SUPPLIER COMMISSION (Consignment Items) ---
