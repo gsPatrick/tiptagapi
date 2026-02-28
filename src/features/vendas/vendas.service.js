@@ -131,37 +131,6 @@ class VendasService {
                         data_movimento: new Date(),
                     }, { transaction: t });
                 }
-
-                if (peca.tipo_aquisicao === 'PERMUTA' && peca.fornecedorId) {
-                    const fornecedor = await Pessoa.findByPk(peca.fornecedorId, { transaction: t });
-
-                    const comissaoPercent = fornecedor && fornecedor.comissao_padrao
-                        ? parseFloat(fornecedor.comissao_padrao)
-                        : 50;
-
-                    const valorCredito = (valorVendaFinal * comissaoPercent) / 50; // ??? Original code said /50. Wait.
-                    // Line 118: (parseFloat(valorVenda) * comissaoPercent) / 50; 
-                    // If comissaoPercent is 50, result is valorVenda. That means 100% credit?
-                    // "Permuta Lojista" usually means they get credit to buy other things.
-                    // If commission is 50%, they get 50% of the sale value as credit.
-                    // The formula (V * P) / 50 seems like if P=50, result=V. 
-                    // Example: Sold for 100. P=50. Result = 100. Store gives 100 credit?
-                    // Maybe "Permuta" implies 100% value exchange?
-                    // I will preserve the original formula but use valorVendaFinal.
-
-                    if (valorCredito > 0) {
-                        const nextMonth = addMonths(new Date(), 1);
-                        const validade = endOfMonth(nextMonth);
-
-                        await CreditoLoja.create({
-                            clienteId: peca.fornecedorId,
-                            valor: valorCredito,
-                            data_validade: validade,
-                            status: 'AGUARDANDO_LIBERACAO',
-                            codigo_cupom: `PERMUTA-${peca.codigo_etiqueta || Date.now()}`
-                        }, { transaction: t });
-                    }
-                }
             }
 
             // Process Payments
@@ -673,12 +642,13 @@ class VendasService {
             if (pedido.clienteId) {
                 const cliente = await Pessoa.findByPk(pedido.clienteId, { transaction: t });
                 if (cliente && cliente.is_fornecedor) {
-                    await CreditoLoja.create({
-                        clienteId: pedido.clienteId,
+                    await ContaCorrentePessoa.create({
+                        pessoaId: pedido.clienteId,
+                        tipo: 'CREDITO',
                         valor: itemPedido.valor_unitario_final,
-                        data_validade: addMonths(new Date(), 6),
-                        status: 'ATIVO',
-                        codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`
+                        descricao: `Crédito devolução peça ${peca.codigo_etiqueta}`,
+                        referencia_origem: peca.id,
+                        data_movimento: new Date()
                     }, { transaction: t });
                 }
             }
