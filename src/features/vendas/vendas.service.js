@@ -38,8 +38,8 @@ class VendasService {
                 }
                 pecasMap.set(item.pecaId, peca);
 
-                // Reference price for discount calculation is the negotiated Sacolinha price or the Catalog price.
-                const precoReferencia = peca.preco_venda_sacolinha || peca.preco_venda;
+                // Prioritize price sent from PDV (which may include manual edits)
+                const precoReferencia = item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda;
                 valorTotalOriginal += parseFloat(precoReferencia);
             }
 
@@ -67,8 +67,8 @@ class VendasService {
             for (const item of itens) {
                 const peca = pecasMap.get(item.pecaId); // Already fetched
 
-                // Base price for this transaction
-                const valorOriginal = parseFloat(peca.preco_venda_sacolinha || peca.preco_venda);
+                // Base price for this transaction - prioritize payload price
+                const valorOriginal = parseFloat(item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda);
 
                 // Apply Discount Factor
                 const valorVendaFinal = valorOriginal * fatorDesconto;

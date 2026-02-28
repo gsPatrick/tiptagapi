@@ -123,9 +123,10 @@ class PessoasService {
         }
 
         const pessoas = await Pessoa.findAll(options);
+        const includeSimple = simple === 'true' || simple === true;
 
-        // Calculate balances
-        return pessoas.map(p => {
+        // Calculate balances and map results
+        let result = pessoas.map(p => {
             const person = p.toJSON();
 
             // 1. Supplier Balance (ContaCorrentePessoa)
@@ -151,6 +152,13 @@ class PessoasService {
 
             return person;
         });
+
+        // Apply has_credit filter if requested
+        if (filters.has_credit === 'true' || filters.has_credit === true) {
+            result = result.filter(p => p.saldo > 0);
+        }
+
+        return result;
     }
 
     async getById(id) {
