@@ -305,21 +305,8 @@ class PessoasService {
             }))
         ].sort((a, b) => new Date(b.data) - new Date(a.data));
 
-        // Group pieces by month
-        const { Peca } = require('../../models');
-        const allPecasVendidas = await Peca.findAll({
-            where: {
-                fornecedorId: pessoaId,
-                status: 'VENDIDA',
-                data_venda: { [Op.ne]: null }
-            },
-            order: [['data_venda', 'DESC']]
-        });
-
-        const detalhamento = [];
+        // Group detailing by month based on CREDITO movements
         const monthlyGroups = {};
-
-        // Helper to get group
         const getGroup = (date, isPending) => {
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             if (!monthlyGroups[key]) {
@@ -336,45 +323,57 @@ class PessoasService {
             return monthlyGroups[key];
         };
 
-        allPecasVendidas.forEach(p => {
-            const date = new Date(p.data_venda);
+        const { Peca } = require('../../models');
+        const ccCredits = ccMovements.filter(m => m.tipo === 'CREDITO');
+        const pecaIds = ccCredits.map(m => m.referencia_origem).filter(id => !!id);
+
+        const pecasMap = {};
+        if (pecaIds.length > 0) {
+            const pcs = await Peca.findAll({
+                where: { id: { [Op.in]: pecaIds } }
+            });
+            pcs.forEach(p => { pecasMap[p.id] = p; });
+        }
+
+        // 1. Process CC Credits (Most items and adjustments)
+        ccCredits.forEach(cc => {
+            const date = new Date(cc.data_movimento);
             const isPending = date >= currentMonthStart;
             const group = getGroup(date, isPending);
             
-            // Re-calculate commission for display
-            // Consignment = 50%, Permuta = comissao_padrao (default 50)
-            const comissaoPercent = p.tipo_aquisicao === 'CONSIGNACAO' ? 50 : 50; 
-            const valorComissao = (parseFloat(p.valor_venda_final || p.preco_venda) * comissaoPercent) / 100;
+            const val = parseFloat(cc.valor);
+            group.valor += val;
 
-            group.pecas.push({
-                id: p.id,
-                codigo: p.codigo_etiqueta,
-                descricao: p.descricao_curta,
-                valor_venda: parseFloat(p.valor_venda_final || p.preco_venda),
-                comissao: valorComissao,
-                data: p.data_venda
-            });
-            
-            // Increment the group total with the commission from this piece
-            group.valor += valorComissao;
-        });
-
-        // Add non-item movements (generic credits/debits from CC)
-        ccMovements.filter(m => m.tipo === 'CREDITO').forEach(cc => {
-            const date = new Date(cc.data_movimento);
-            const isPending = date >= currentMonthStart;
-            
-            // If it's a generic credit (no pecaId ref), add to group total and 'outros'
-            if (!cc.referencia_origem) {
-                const group = getGroup(date, isPending);
-                group.valor += parseFloat(cc.valor);
+            if (cc.referencia_origem && pecasMap[cc.referencia_origem]) {
+                const p = pecasMap[cc.referencia_origem];
+                group.pecas.push({
+                    id: p.id,
+                    codigo: p.codigo_etiqueta,
+                    descricao: p.descricao_curta,
+                    valor_venda: parseFloat(p.valor_venda_final || p.preco_venda || 0),
+                    comissao: val,
+                    data: cc.data_movimento
+                });
+            } else {
                 group.outros.push({
                     descricao: cc.descricao,
-                    valor: parseFloat(cc.valor)
+                    valor: val
                 });
             }
         });
 
+        // 2. Process CreditoLoja (Vouchers/Cups)
+        creditos.forEach(c => {
+            const date = new Date(c.createdAt || c.data_validade);
+            const group = getGroup(date, false);
+            group.valor += parseFloat(c.valor);
+            group.outros.push({
+                descricao: `Crédito Loja / Cupom`,
+                valor: parseFloat(c.valor)
+            });
+        });
+
+        const detalhamento = [];
         Object.keys(monthlyGroups).sort().reverse().forEach(key => {
             detalhamento.push(monthlyGroups[key]);
         });
