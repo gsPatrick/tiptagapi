@@ -30,7 +30,7 @@ const automacaoService = require("../automacao/automacao.service");
 
 class VendasService {
   async processarVendaPDV(data, userId) {
-    const { clienteId, itens, pagamentos, origemVendaId, canal, sacolinhaId } =
+    let { clienteId, itens, pagamentos, origemVendaId, canal, sacolinhaId } =
       data;
 
     const caixaAberto = await CaixaDiario.findOne({
