@@ -341,9 +341,9 @@ class PessoasService {
             const isPending = date >= currentMonthStart;
             const group = getGroup(date, isPending);
             
-            // Re-calculate commission for display if not saved
-            // Logic similar to vendas.service
-            const comissaoPercent = 50; 
+            // Re-calculate commission for display
+            // Consignment = 50%, Permuta = comissao_padrao (default 50)
+            const comissaoPercent = p.tipo_aquisicao === 'CONSIGNACAO' ? 50 : 50; 
             const valorComissao = (parseFloat(p.valor_venda_final || p.preco_venda) * comissaoPercent) / 100;
 
             group.pecas.push({
@@ -354,24 +354,20 @@ class PessoasService {
                 comissao: valorComissao,
                 data: p.data_venda
             });
-            // We don't add to group.valor yet to avoid double counting with CC credits
-            // Actually, let's use the actual CC entries for values to be precise
+            
+            // Increment the group total with the commission from this piece
+            group.valor += valorComissao;
         });
 
-        creditos.forEach(c => {
-            const date = new Date(c.data_validade);
-            const group = getGroup(date, false);
-            group.valor += parseFloat(c.valor);
-        });
-
+        // Add non-item movements (generic credits/debits from CC)
         ccMovements.filter(m => m.tipo === 'CREDITO').forEach(cc => {
             const date = new Date(cc.data_movimento);
             const isPending = date >= currentMonthStart;
-            const group = getGroup(date, isPending);
-            group.valor += parseFloat(cc.valor);
-
-            // If it's a generic credit (no pecaId ref), add to outros
+            
+            // If it's a generic credit (no pecaId ref), add to group total and 'outros'
             if (!cc.referencia_origem) {
+                const group = getGroup(date, isPending);
+                group.valor += parseFloat(cc.valor);
                 group.outros.push({
                     descricao: cc.descricao,
                     valor: parseFloat(cc.valor)
