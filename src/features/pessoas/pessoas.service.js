@@ -1,5 +1,6 @@
-const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido, ContratoPessoa } = require('../../models');
+const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido, ContratoPessoa, ContaCorrentePessoa, sequelize } = require('../../models');
 const { Op } = require('sequelize');
+const { startOfMonth, subMonths } = require('date-fns');
 const fs = require('fs');
 const path = require('path');
 
@@ -232,18 +233,34 @@ class PessoasService {
         const totalCreditoLoja = creditos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
         const nextExpiration = creditos.length > 0 ? creditos[0].data_validade : null;
 
-        // 2. ContaCorrentePessoa (Supplier Commissions for FORNECEDORES)
-        // This allows suppliers to use their commission balance for purchases (PERMUTA)
-        const contaCredits = await ContaCorrentePessoa.sum('valor', {
-            where: { pessoaId, tipo: 'CREDITO' }
-        }) || 0;
-        const contaDebits = await ContaCorrentePessoa.sum('valor', {
-            where: { pessoaId, tipo: 'DEBITO' }
-        }) || 0;
-        const saldoContaCorrente = contaCredits - contaDebits;
+        // Total Consolidated = CreditoLoja + ContaCorrentePessoa (Month M-1 or older)
+        const currentMonthStart = startOfMonth(new Date());
 
-        // Combined Saldo = CreditoLoja + ContaCorrentePessoa
-        const saldoTotal = totalCreditoLoja + Math.max(0, saldoContaCorrente);
+        const consolidatedCCSaldo = await ContaCorrentePessoa.findAll({
+            attributes: [
+                [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+            ],
+            where: {
+                pessoaId,
+                data_movimento: { [Op.lt]: currentMonthStart }
+            },
+            raw: true
+        });
+
+        const pendingCCSaldo = await ContaCorrentePessoa.findAll({
+            attributes: [
+                [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+            ],
+            where: {
+                pessoaId,
+                tipo: 'CREDITO',
+                data_movimento: { [Op.gte]: currentMonthStart }
+            },
+            raw: true
+        });
+
+        const saldoConsolidado = (parseFloat(totalCreditoLoja) || 0) + (parseFloat(consolidatedCCSaldo[0]?.saldo) || 0);
+        const saldoPendente = parseFloat(pendingCCSaldo[0]?.saldo) || 0;
 
         // History: Usage
         const usos = await PagamentoPedido.findAll({
@@ -264,13 +281,60 @@ class PessoasService {
             valor: parseFloat(u.valor),
             tipo: 'USO'
         }));
+        const detalhamento = [];
+        const monthlyGroups = {};
+
+        creditos.forEach(c => {
+            const date = new Date(c.data_validade);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthlyGroups[key]) {
+                monthlyGroups[key] = {
+                    mes: date.getMonth() + 1,
+                    ano: date.getFullYear(),
+                    valor: 0,
+                    status: 'DISPONIVEL'
+                };
+            }
+            monthlyGroups[key].valor += parseFloat(c.valor);
+        });
+
+        // Add ContaCorrentePessoa credits to grouping
+        const ccCredits = await ContaCorrentePessoa.findAll({
+            where: {
+                pessoaId,
+                tipo: 'CREDITO'
+            },
+            order: [['data_movimento', 'DESC']]
+        });
+
+        ccCredits.forEach(cc => {
+            const date = new Date(cc.data_movimento);
+            const isPending = date >= currentMonthStart;
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!monthlyGroups[key]) {
+                monthlyGroups[key] = {
+                    mes: date.getMonth() + 1,
+                    ano: date.getFullYear(),
+                    valor: 0,
+                    status: isPending ? 'PENDENTE' : 'DISPONIVEL'
+                };
+            }
+            monthlyGroups[key].valor += parseFloat(cc.valor);
+        });
+
+        Object.keys(monthlyGroups).sort().reverse().forEach(key => {
+            detalhamento.push(monthlyGroups[key]);
+        });
 
         return {
-            saldo: saldoTotal,
+            saldo: saldoConsolidado, // What can be used now
+            saldoPendente, // What is being accrued this month
             saldoCreditoLoja: totalCreditoLoja,
-            saldoContaCorrente: Math.max(0, saldoContaCorrente),
+            saldoContaCorrente: saldoConsolidado - totalCreditoLoja,
             proximoVencimento: nextExpiration,
-            historico
+            historico,
+            detalhamento
         };
     }
 
