@@ -142,7 +142,11 @@ class CatalogoService {
         if (dataInicio || dataFim) {
             where.data_entrada = {};
             if (dataInicio) where.data_entrada[Op.gte] = new Date(dataInicio);
-            if (dataFim) where.data_entrada[Op.lte] = new Date(dataFim);
+            if (dataFim) {
+                const end = new Date(dataFim);
+                end.setHours(23, 59, 59, 999);
+                where.data_entrada[Op.lte] = end;
+            }
         }
 
         if (search) {
@@ -213,11 +217,20 @@ class CatalogoService {
         // --- ENFORCE 50/50 VIEW LOGIC ---
         const fixPeca = (p) => {
             const json = p.toJSON ? p.toJSON() : p;
+
+            // If it's sold, use the persisted sold price for calculations
+            const precoBase = json.status === 'VENDIDA' && json.valor_venda_final !== null
+                ? parseFloat(json.valor_venda_final)
+                : parseFloat(json.preco_venda || 0);
+
             if (json.tipo_aquisicao === 'CONSIGNACAO') {
-                const preco = parseFloat(json.preco_venda || 0);
-                const split = (preco * 0.5).toFixed(2);
+                const split = (precoBase * 0.5).toFixed(2);
                 json.valor_comissao_loja = split;
                 json.valor_liquido_fornecedor = split;
+                // Update preco_venda in the returned JSON to reflect actual sold price if sold
+                if (json.status === 'VENDIDA' && json.valor_venda_final !== null) {
+                    json.preco_venda = json.valor_venda_final;
+                }
             }
             return json;
         };
@@ -253,11 +266,19 @@ class CatalogoService {
 
         // --- ENFORCE 50/50 VIEW LOGIC ---
         const json = peca.toJSON();
+
+        const precoBase = json.status === 'VENDIDA' && json.valor_venda_final !== null
+            ? parseFloat(json.valor_venda_final)
+            : parseFloat(json.preco_venda || 0);
+
         if (json.tipo_aquisicao === 'CONSIGNACAO') {
-            const preco = parseFloat(json.preco_venda || 0);
-            const split = (preco * 0.5).toFixed(2);
+            const split = (precoBase * 0.5).toFixed(2);
             json.valor_comissao_loja = split;
             json.valor_liquido_fornecedor = split;
+            // Update preco_venda in the returned JSON to reflect actual sold price if sold
+            if (json.status === 'VENDIDA' && json.valor_venda_final !== null) {
+                json.preco_venda = json.valor_venda_final;
+            }
         }
         return json;
         // --------------------------------

@@ -1,7 +1,0 @@
-node_modules/
-.env
-uploads/
-.DS_Store
-*.xlsx
-*.zip
-*.log

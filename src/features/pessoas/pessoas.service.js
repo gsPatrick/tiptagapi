@@ -262,7 +262,7 @@ class PessoasService {
         const saldoConsolidado = (parseFloat(totalCreditoLoja) || 0) + (parseFloat(consolidatedCCSaldo[0]?.saldo) || 0);
         const saldoPendente = parseFloat(pendingCCSaldo[0]?.saldo) || 0;
 
-        // History: Usage
+        // History: Usage (Payments) + CC Movements (Debits)
         const usos = await PagamentoPedido.findAll({
             where: { metodo: 'VOUCHER_PERMUTA' },
             include: [{
@@ -274,53 +274,101 @@ class PessoasService {
             order: [['createdAt', 'DESC']]
         });
 
-        const historico = usos.map(u => ({
-            id: u.id,
-            data: u.pedido ? u.pedido.data_pedido : u.createdAt,
-            descricao: u.pedido ? `Abatimento Pedido ${u.pedido.codigo_pedido}` : 'Uso de Voucher',
-            valor: parseFloat(u.valor),
-            tipo: 'USO'
-        }));
-        const detalhamento = [];
-        const monthlyGroups = {};
-
-        creditos.forEach(c => {
-            const date = new Date(c.data_validade);
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            if (!monthlyGroups[key]) {
-                monthlyGroups[key] = {
-                    mes: date.getMonth() + 1,
-                    ano: date.getFullYear(),
-                    valor: 0,
-                    status: 'DISPONIVEL'
-                };
-            }
-            monthlyGroups[key].valor += parseFloat(c.valor);
-        });
-
-        // Add ContaCorrentePessoa credits to grouping
-        const ccCredits = await ContaCorrentePessoa.findAll({
-            where: {
-                pessoaId,
-                tipo: 'CREDITO'
-            },
+        // Fetch all CC movements for history (Debits/Resets)
+        const ccMovements = await ContaCorrentePessoa.findAll({
+            where: { pessoaId },
             order: [['data_movimento', 'DESC']]
         });
 
-        ccCredits.forEach(cc => {
-            const date = new Date(cc.data_movimento);
-            const isPending = date >= currentMonthStart;
+        const historico = [
+            ...usos.map(u => ({
+                id: `u-${u.id}`,
+                data: u.pedido ? u.pedido.data_pedido : u.createdAt,
+                descricao: u.pedido ? `Abatimento Pedido ${u.pedido.codigo_pedido}` : 'Uso de Voucher',
+                valor: parseFloat(u.valor),
+                tipo: 'USO'
+            })),
+            ...ccMovements.filter(m => m.tipo === 'DEBITO').map(m => ({
+                id: `m-${m.id}`,
+                data: m.data_movimento,
+                descricao: m.descricao || 'Débito em Conta',
+                valor: parseFloat(m.valor),
+                tipo: 'DEBITO'
+            }))
+        ].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        // Group pieces by month
+        const { Peca } = require('../../models');
+        const allPecasVendidas = await Peca.findAll({
+            where: {
+                fornecedorId: pessoaId,
+                status: 'VENDIDA',
+                data_venda: { [Op.ne]: null }
+            },
+            order: [['data_venda', 'DESC']]
+        });
+
+        const detalhamento = [];
+        const monthlyGroups = {};
+
+        // Helper to get group
+        const getGroup = (date, isPending) => {
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            
             if (!monthlyGroups[key]) {
                 monthlyGroups[key] = {
+                    key,
                     mes: date.getMonth() + 1,
                     ano: date.getFullYear(),
                     valor: 0,
-                    status: isPending ? 'PENDENTE' : 'DISPONIVEL'
+                    status: isPending ? 'PENDENTE' : 'DISPONIVEL',
+                    pecas: [],
+                    outros: []
                 };
             }
-            monthlyGroups[key].valor += parseFloat(cc.valor);
+            return monthlyGroups[key];
+        };
+
+        allPecasVendidas.forEach(p => {
+            const date = new Date(p.data_venda);
+            const isPending = date >= currentMonthStart;
+            const group = getGroup(date, isPending);
+            
+            // Re-calculate commission for display if not saved
+            // Logic similar to vendas.service
+            const comissaoPercent = 50; 
+            const valorComissao = (parseFloat(p.valor_venda_final || p.preco_venda) * comissaoPercent) / 100;
+
+            group.pecas.push({
+                id: p.id,
+                codigo: p.codigo_etiqueta,
+                descricao: p.descricao_curta,
+                valor_venda: parseFloat(p.valor_venda_final || p.preco_venda),
+                comissao: valorComissao,
+                data: p.data_venda
+            });
+            // We don't add to group.valor yet to avoid double counting with CC credits
+            // Actually, let's use the actual CC entries for values to be precise
+        });
+
+        creditos.forEach(c => {
+            const date = new Date(c.data_validade);
+            const group = getGroup(date, false);
+            group.valor += parseFloat(c.valor);
+        });
+
+        ccMovements.filter(m => m.tipo === 'CREDITO').forEach(cc => {
+            const date = new Date(cc.data_movimento);
+            const isPending = date >= currentMonthStart;
+            const group = getGroup(date, isPending);
+            group.valor += parseFloat(cc.valor);
+
+            // If it's a generic credit (no pecaId ref), add to outros
+            if (!cc.referencia_origem) {
+                group.outros.push({
+                    descricao: cc.descricao,
+                    valor: parseFloat(cc.valor)
+                });
+            }
         });
 
         Object.keys(monthlyGroups).sort().reverse().forEach(key => {

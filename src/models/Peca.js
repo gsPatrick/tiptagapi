@@ -166,6 +166,11 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
             comment: 'Preço negociado especificamente para a sacolinha'
         },
+        valor_venda_final: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true,
+            comment: 'Preço real final pelo qual a peça foi vendida'
+        },
     }, {
         sequelize,
         modelName: 'Peca',

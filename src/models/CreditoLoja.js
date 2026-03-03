@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
         },
         status: {
-            type: DataTypes.ENUM('ATIVO', 'USADO', 'EXPIRADO'),
+            type: DataTypes.ENUM('ATIVO', 'USADO', 'EXPIRADO', 'AGUARDANDO_LIBERACAO'),
             defaultValue: 'ATIVO',
         },
         codigo_cupom: {

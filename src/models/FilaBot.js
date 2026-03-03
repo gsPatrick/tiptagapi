@@ -9,7 +9,15 @@ module.exports = (sequelize, DataTypes) => {
     FilaBot.init({
         telefone: {
             type: DataTypes.STRING,
-            allowNull: false,
+            allowNull: true,
+        },
+        email: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        assunto: {
+            type: DataTypes.STRING,
+            allowNull: true,
         },
         mensagem: {
             type: DataTypes.TEXT,
@@ -29,8 +37,8 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 'WHATSAPP',
         },
         tipo: {
-            type: DataTypes.ENUM('ALERTA_VENCIMENTO', 'PROMO', 'REPASSE', 'MATCH_PECA', 'POS_VENDA'),
-            allowNull: false,
+            type: DataTypes.STRING,
+            allowNull: true,
         },
     }, {
         sequelize,

@@ -335,7 +335,7 @@ class RelatoriosService {
     async getAnaliseEstoque() {
         const pecas = await Peca.findAll({
             attributes: [
-                'id', 'status', 'preco_venda', 'data_entrada', 'data_venda', 'valor_comissao_loja',
+                'id', 'status', 'preco_venda', 'valor_venda_final', 'data_entrada', 'data_venda', 'valor_comissao_loja',
                 [Sequelize.col('categoria.nome'), 'categoriaNome'],
                 [Sequelize.col('fornecedor.nome'), 'fornecedorNome']
             ],
@@ -347,7 +347,12 @@ class RelatoriosService {
         });
 
         const totalPecas = pecas.length;
-        const totalValor = pecas.reduce((acc, p) => acc + parseFloat(p.preco_venda || 0), 0);
+        const totalValor = pecas.reduce((acc, p) => {
+            const preco = p.status === 'VENDIDA' && p.valor_venda_final !== null
+                ? parseFloat(p.valor_venda_final)
+                : parseFloat(p.preco_venda || 0);
+            return acc + preco;
+        }, 0);
         const precoMedio = totalPecas > 0 ? totalValor / totalPecas : 0;
 
         // Status
@@ -367,7 +372,9 @@ class RelatoriosService {
             'Acima de R$ 500': 0
         };
         pecas.forEach(p => {
-            const val = parseFloat(p.preco_venda || 0);
+            const val = p.status === 'VENDIDA' && p.valor_venda_final !== null
+                ? parseFloat(p.valor_venda_final)
+                : parseFloat(p.preco_venda || 0);
             if (val <= 50) priceRanges['Até R$ 50']++;
             else if (val <= 100) priceRanges['R$ 51 a R$ 100']++;
             else if (val <= 200) priceRanges['R$ 101 a R$ 200']++;
@@ -435,7 +442,9 @@ class RelatoriosService {
                 supMap[s].valor += parseFloat(p.preco_venda || 0);
             } else if (p.status === 'VENDIDA') {
                 supMap[s].vendidas++;
-                const preco = parseFloat(p.preco_venda || 0);
+                const preco = p.valor_venda_final !== null
+                    ? parseFloat(p.valor_venda_final)
+                    : parseFloat(p.preco_venda || 0);
                 const loja = parseFloat(p.valor_comissao_loja || 0);
                 if (preco > 0) {
                     supMap[s].margemTotal += (loja / preco);
