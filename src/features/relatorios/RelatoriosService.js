@@ -956,8 +956,32 @@ class RelatoriosService {
             fornecedorId
         };
 
-        if (filters.dataEntrada) {
+        // Date range filter
+        if (filters.inicio && filters.fim) {
+            whereClause.data_entrada = { [Op.between]: [startOfDay(new Date(filters.inicio)), endOfDay(new Date(filters.fim))] };
+        } else if (filters.inicio) {
+            whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.inicio)) };
+        } else if (filters.fim) {
+            whereClause.data_entrada = { [Op.lte]: endOfDay(new Date(filters.fim)) };
+        } else if (filters.dataEntrada) {
             whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.dataEntrada)) };
+        }
+
+        // Status filter
+        if (filters.status) {
+            if (filters.status === 'DISPONIVEL') {
+                whereClause.status = { [Op.in]: ['DISPONIVEL', 'A_VENDA', 'RESERVADA_SACOLINHA', 'RESERVADA_ECOMMERCE'] };
+            } else {
+                whereClause.status = filters.status;
+            }
+        }
+
+        // Search filter
+        if (filters.search) {
+            whereClause[Op.or] = [
+                { codigo_etiqueta: { [Op.like]: `%${filters.search}%` } },
+                { descricao_curta: { [Op.like]: `%${filters.search}%` } }
+            ];
         }
 
         const page = parseInt(filters.page) || 1;
