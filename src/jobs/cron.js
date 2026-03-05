@@ -27,9 +27,10 @@ class CronService {
             await this.runMonthlyCycle();
         });
 
-        // Run reminder on the 25th at 09:00 AM
-        cron.schedule('0 9 25 * *', async () => {
-            console.log('Running Expiration Reminder Jobs...');
+        // Run reminder on the last day of the month at 09:00 AM
+        cron.schedule('0 9 28-31 * *', async () => {
+            if (format(new Date(), 'dd') !== format(endOfMonth(new Date()), 'dd')) return;
+            console.log('Running Expiration Reminder Jobs (Last day of month)...');
             await this.runExpirationReminder();
         });
 
@@ -278,7 +279,7 @@ class CronService {
                         NOME: data.cliente.nome,
                         VALOR: data.total.toFixed(2)
                     },
-                    mensagem: `Olá ${data.cliente.nome}, você ainda tem R$ ${data.total.toFixed(2)} em créditos que vencem em 5 dias!`
+                    mensagem: `Olá ${data.cliente.nome}, você ainda tem R$ ${data.total.toFixed(2)} em créditos que vencem HOJE! Venha usar na loja antes que expirem.`
                 });
             }
         }
@@ -308,7 +309,7 @@ class CronService {
                         NOME: pessoa.nome,
                         VALOR: saldo.toFixed(2)
                     },
-                    mensagem: `Olá ${pessoa.nome}, seus créditos de R$ ${saldo.toFixed(2)} vencem em breve! Aproveite antes do fim do mês na loja Garimpô Nós.`
+                    mensagem: `Olá ${pessoa.nome}, seus créditos de R$ ${saldo.toFixed(2)} vencem HOJE! Aproveite para usar na loja Garimpô Nós antes que expirem.`
                 });
             }
         }
