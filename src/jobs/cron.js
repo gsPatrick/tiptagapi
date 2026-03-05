@@ -32,6 +32,12 @@ class CronService {
             console.log('Running Expiration Reminder Jobs...');
             await this.runExpirationReminder();
         });
+
+        // Run mid-month supplier credit reminder on the 15th at 09:00 AM
+        cron.schedule('0 9 15 * *', async () => {
+            console.log('Running Mid-Month Supplier Credit Reminder...');
+            await this.runMidMonthSupplierReminder();
+        });
     }
 
     async autoFecharCaixas() {
@@ -203,7 +209,40 @@ class CronService {
             }
 
             let messagesQueued = 0;
-            console.log(`[MonthlyCycle] Queued ${messagesQueued} notifications for clients.`);
+
+            // Notify suppliers with newly available credits
+            const suppliersWithCredits = await ContaCorrentePessoa.findAll({
+                attributes: [
+                    'pessoaId',
+                    [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+                ],
+                where: {
+                    data_movimento: { [Op.lt]: startOfMonth(now) }
+                },
+                group: ['pessoaId'],
+                having: sequelize.literal("SUM(CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END) > 0"),
+                transaction: t
+            });
+
+            for (const s of suppliersWithCredits) {
+                const saldo = parseFloat(s.get('saldo'));
+                const pessoa = await Pessoa.findByPk(s.pessoaId, { transaction: t });
+                if (pessoa && pessoa.telefone_whatsapp && pessoa.is_fornecedor) {
+                    await automacaoService.agendarMensagem({
+                        telefone: pessoa.telefone_whatsapp,
+                        canal: 'WHATSAPP',
+                        gatilho: 'CREDITO_LIBERADO',
+                        variaveis: {
+                            NOME: pessoa.nome,
+                            VALOR: saldo.toFixed(2)
+                        },
+                        mensagem: `Olá ${pessoa.nome}! 🎉 Seus créditos de R$ ${saldo.toFixed(2)} foram liberados e já estão disponíveis para uso na loja Garimpô Nós. Venha aproveitar!`
+                    });
+                    messagesQueued++;
+                }
+            }
+
+            console.log(`[MonthlyCycle] Queued ${messagesQueued} notifications for suppliers.`);
 
             await t.commit();
         } catch (err) {
@@ -242,6 +281,107 @@ class CronService {
                     mensagem: `Olá ${data.cliente.nome}, você ainda tem R$ ${data.total.toFixed(2)} em créditos que vencem em 5 dias!`
                 });
             }
+        }
+
+        // Also notify suppliers with ContaCorrentePessoa credits
+        const supplierBalances = await ContaCorrentePessoa.findAll({
+            attributes: [
+                'pessoaId',
+                [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+            ],
+            where: {
+                data_movimento: { [Op.lt]: startOfMonth(new Date()) }
+            },
+            group: ['pessoaId'],
+            having: sequelize.literal("SUM(CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END) > 0")
+        });
+
+        for (const b of supplierBalances) {
+            const saldo = parseFloat(b.get('saldo'));
+            const pessoa = await Pessoa.findByPk(b.pessoaId);
+            if (pessoa && pessoa.telefone_whatsapp && pessoa.is_fornecedor) {
+                await automacaoService.agendarMensagem({
+                    telefone: pessoa.telefone_whatsapp,
+                    canal: 'WHATSAPP',
+                    gatilho: 'LEMBRETE_EXPIRACAO',
+                    variaveis: {
+                        NOME: pessoa.nome,
+                        VALOR: saldo.toFixed(2)
+                    },
+                    mensagem: `Olá ${pessoa.nome}, seus créditos de R$ ${saldo.toFixed(2)} vencem em breve! Aproveite antes do fim do mês na loja Garimpô Nós.`
+                });
+            }
+        }
+    }
+
+    async runMidMonthSupplierReminder() {
+        try {
+            // Find all suppliers with positive ContaCorrentePessoa balance
+            const supplierBalances = await ContaCorrentePessoa.findAll({
+                attributes: [
+                    'pessoaId',
+                    [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+                ],
+                where: {
+                    data_movimento: { [Op.lt]: startOfMonth(new Date()) }
+                },
+                group: ['pessoaId'],
+                having: sequelize.literal("SUM(CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END) > 0")
+            });
+
+            let sent = 0;
+            for (const b of supplierBalances) {
+                const saldo = parseFloat(b.get('saldo'));
+                const pessoa = await Pessoa.findByPk(b.pessoaId);
+                if (pessoa && pessoa.telefone_whatsapp && pessoa.is_fornecedor) {
+                    await automacaoService.agendarMensagem({
+                        telefone: pessoa.telefone_whatsapp,
+                        canal: 'WHATSAPP',
+                        gatilho: 'LEMBRETE_CREDITO_MEIO_MES',
+                        variaveis: {
+                            NOME: pessoa.nome,
+                            VALOR: saldo.toFixed(2)
+                        },
+                        mensagem: `Olá ${pessoa.nome}! Lembrete: você possui R$ ${saldo.toFixed(2)} em créditos disponíveis na Garimpô Nós. Aproveite para usar suas peças!`
+                    });
+                    sent++;
+                }
+            }
+
+            // Also check CreditoLoja for clients
+            const credits = await CreditoLoja.findAll({
+                where: { status: 'ATIVO', valor: { [Op.gt]: 0 } },
+                include: [{ model: Pessoa, as: 'cliente' }]
+            });
+
+            const clientTotals = {};
+            for (const c of credits) {
+                if (!clientTotals[c.clienteId]) {
+                    clientTotals[c.clienteId] = { cliente: c.cliente, total: 0 };
+                }
+                clientTotals[c.clienteId].total += parseFloat(c.valor);
+            }
+
+            for (const clientId in clientTotals) {
+                const data = clientTotals[clientId];
+                if (data.cliente && data.cliente.telefone_whatsapp) {
+                    await automacaoService.agendarMensagem({
+                        telefone: data.cliente.telefone_whatsapp,
+                        canal: 'WHATSAPP',
+                        gatilho: 'LEMBRETE_CREDITO_MEIO_MES',
+                        variaveis: {
+                            NOME: data.cliente.nome,
+                            VALOR: data.total.toFixed(2)
+                        },
+                        mensagem: `Olá ${data.cliente.nome}! Lembrete: você possui R$ ${data.total.toFixed(2)} em créditos disponíveis na Garimpô Nós. Use antes do vencimento!`
+                    });
+                    sent++;
+                }
+            }
+
+            console.log(`[MidMonthReminder] Sent ${sent} reminder messages.`);
+        } catch (err) {
+            console.error('[MidMonthReminder] Error:', err);
         }
     }
 

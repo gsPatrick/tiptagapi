@@ -24,6 +24,7 @@ const {
   isAfter,
   endOfMonth,
   endOfDay,
+  startOfMonth,
   subMilliseconds,
 } = require("date-fns");
 const automacaoService = require("../automacao/automacao.service");
@@ -280,6 +281,7 @@ class VendasService {
               "Cliente não identificado para uso de Voucher Permuta.",
             );
 
+          // 1. Check CreditoLoja (cashback vouchers)
           const creditosDisponiveis = await CreditoLoja.findAll({
             where: {
               clienteId,
@@ -291,15 +293,36 @@ class VendasService {
             transaction: t,
           });
 
-          const totalDisponivel = creditosDisponiveis.reduce(
+          const totalCreditoLoja = creditosDisponiveis.reduce(
             (acc, c) => acc + parseFloat(c.valor),
             0,
           );
+
+          // 2. Check ContaCorrentePessoa balance (supplier commissions)
+          const currentMonthStart = startOfMonth(new Date());
+          const ccResult = await ContaCorrentePessoa.findAll({
+            attributes: [
+              [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
+            ],
+            where: {
+              pessoaId: clienteId,
+              data_movimento: { [Op.lt]: currentMonthStart }
+            },
+            raw: true,
+            transaction: t,
+          });
+          const saldoCC = parseFloat(ccResult[0]?.saldo) || 0;
+
+          const totalDisponivel = totalCreditoLoja + Math.max(0, saldoCC);
+
           if (totalDisponivel < parseFloat(pag.valor)) {
             throw new Error("Saldo de permuta insuficiente ou expirado.");
           }
 
+          // 3. Deduct: first from CreditoLoja, then from ContaCorrentePessoa
           let valorRestante = parseFloat(pag.valor);
+
+          // 3a. Deduct from CreditoLoja vouchers
           for (const credito of creditosDisponiveis) {
             if (valorRestante <= 0) break;
 
@@ -325,6 +348,23 @@ class VendasService {
                 { transaction: t },
               );
             }
+          }
+
+          // 3b. If still remaining, deduct from ContaCorrentePessoa
+          if (valorRestante > 0 && saldoCC > 0) {
+            const debitCC = Math.min(valorRestante, saldoCC);
+            await ContaCorrentePessoa.create(
+              {
+                pessoaId: clienteId,
+                tipo: "DEBITO",
+                valor: debitCC,
+                descricao: `Uso de crédito Permuta Pedido ${pedido.codigo_pedido}`,
+                referencia_origem: pedido.id,
+                data_movimento: new Date(),
+              },
+              { transaction: t },
+            );
+            valorRestante -= debitCC;
           }
         }
 
