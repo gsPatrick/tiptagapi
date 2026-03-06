@@ -957,14 +957,15 @@ class RelatoriosService {
         };
 
         // Date range filter
+        const dateField = filters.status === 'VENDIDA' ? 'data_venda' : 'data_entrada';
         if (filters.inicio && filters.fim) {
-            whereClause.data_entrada = { [Op.between]: [startOfDay(new Date(filters.inicio)), endOfDay(new Date(filters.fim))] };
+            whereClause[dateField] = { [Op.between]: [startOfDay(new Date(filters.inicio)), endOfDay(new Date(filters.fim))] };
         } else if (filters.inicio) {
-            whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.inicio)) };
+            whereClause[dateField] = { [Op.gte]: startOfDay(new Date(filters.inicio)) };
         } else if (filters.fim) {
-            whereClause.data_entrada = { [Op.lte]: endOfDay(new Date(filters.fim)) };
+            whereClause[dateField] = { [Op.lte]: endOfDay(new Date(filters.fim)) };
         } else if (filters.dataEntrada) {
-            whereClause.data_entrada = { [Op.gte]: startOfDay(new Date(filters.dataEntrada)) };
+            whereClause[dateField] = { [Op.gte]: startOfDay(new Date(filters.dataEntrada)) };
         }
 
         // Status filter
