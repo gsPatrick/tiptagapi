@@ -149,7 +149,7 @@ class VendasService {
         const novaQuantidade = peca.quantidade - 1;
         const updateData = {
           quantidade: novaQuantidade,
-          sacolinhaId: sacolinhaId || peca.sacolinhaId, // Ensure association is saved/preserved
+          sacolinhaId: null, // CLEAR association so it leaves the shopping bag
           valor_venda_final: valorVendaFinal, // PERSIST SOLD PRICE
         };
 
