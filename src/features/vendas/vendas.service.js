@@ -149,7 +149,7 @@ class VendasService {
         const novaQuantidade = peca.quantidade - 1;
         const updateData = {
           quantidade: novaQuantidade,
-          sacolinhaId: null, // CLEAR association so it leaves the shopping bag
+          sacolinhaId: sacolinhaId || peca.sacolinhaId, // Preserve association for history
           valor_venda_final: valorVendaFinal, // PERSIST SOLD PRICE
         };
 
@@ -407,51 +407,7 @@ class VendasService {
         { transaction: t },
       );
 
-      // --- CASHBACK LOGIC ---
-      // Verifica se houve pagamento com Voucher ou Crédito Loja
-      const pagouComCredito = pagamentos.some((p) =>
-        ["VOUCHER_PERMUTA", "CREDITO_LOJA"].includes(p.metodo),
-      );
-      let valorCashback = 0;
 
-      if (clienteId && !pagouComCredito) {
-        const configDia = await Configuracao.findByPk("CASHBACK_DIA_RESET", {
-          transaction: t,
-        });
-        const configHora = await Configuracao.findByPk("CASHBACK_HORA_RESET", {
-          transaction: t,
-        });
-
-        const diaReset = configDia ? parseInt(configDia.valor) : 1;
-        const horaResetStr = configHora ? configHora.valor : "00:00";
-        const [horaReset, minReset] = horaResetStr.split(":").map(Number);
-
-        const now = new Date();
-        let validade = setDate(now, diaReset);
-
-        if (isAfter(now, validade)) {
-          validade = addMonths(validade, 1);
-        }
-
-        // Cycle ends at the last millisecond of the day before the reset day
-        validade = subMilliseconds(validade, 1);
-
-        const cashbackPercent = 100;
-        valorCashback = (totalPago * cashbackPercent) / 100;
-
-        if (valorCashback > 0) {
-          await CreditoLoja.create(
-            {
-              clienteId,
-              valor: valorCashback,
-              data_validade: validade,
-              status: "ATIVO",
-              codigo_cupom: `CASHBACK-${pedido.codigo_pedido}`,
-            },
-            { transaction: t },
-          );
-        }
-      }
       // ----------------------
 
       if (sacolinhaId) {
@@ -910,6 +866,7 @@ class VendasService {
         {
           status: "DISPONIVEL",
           quantidade: (peca.quantidade || 0) + 1,
+          sacolinhaId: null, // Clear association on return
         },
         { transaction: t },
       );
@@ -926,20 +883,6 @@ class VendasService {
         },
         { transaction: t },
       );
-
-      // Generate Credit for Client (Refund as Store Credit)
-      if (pedido.clienteId) {
-        await CreditoLoja.create(
-          {
-            clienteId: pedido.clienteId,
-            valor: itemPedido.valor_unitario_final,
-            data_validade: addMonths(new Date(), 6),
-            status: "ATIVO",
-            codigo_cupom: `DEV-${peca.codigo_etiqueta}-${Date.now()}`,
-          },
-          { transaction: t },
-        );
-      }
 
       // --- REVERSE SUPPLIER COMMISSION (Consignment Items) ---
       if (peca.tipo_aquisicao === "CONSIGNACAO" && peca.fornecedorId) {
@@ -1084,6 +1027,7 @@ class VendasService {
               status: "DISPONIVEL",
               data_venda: null,
               quantidade: 1,
+              sacolinhaId: null, // Clear association on cancellation
             },
             { transaction: t },
           );
