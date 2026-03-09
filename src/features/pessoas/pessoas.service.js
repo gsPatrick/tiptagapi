@@ -250,7 +250,13 @@ class PessoasService {
             ],
             where: {
                 pessoaId,
-                data_movimento: { [Op.lt]: currentMonthStart }
+                [Op.or]: [
+                    { tipo: 'DEBITO' }, // All debits are subtracted immediately
+                    { 
+                        tipo: 'CREDITO', 
+                        data_movimento: { [Op.lt]: currentMonthStart } // Only previous months credits are active
+                    }
+                ]
             },
             raw: true
         });
