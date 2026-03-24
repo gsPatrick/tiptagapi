@@ -26,6 +26,7 @@ const {
   endOfDay,
   startOfMonth,
   subMilliseconds,
+  subMonths,
 } = require("date-fns");
 const automacaoService = require("../automacao/automacao.service");
 
