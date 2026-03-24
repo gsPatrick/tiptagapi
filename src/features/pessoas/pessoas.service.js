@@ -1,6 +1,6 @@
 const { Pessoa, Endereco, ContaBancariaPessoa, PerfilComportamental, CreditoLoja, PagamentoPedido, Pedido, ContratoPessoa, ContaCorrentePessoa, sequelize } = require('../../models');
 const { Op } = require('sequelize');
-const { startOfMonth, subMonths } = require('date-fns');
+const { startOfMonth, subMonths, endOfMonth } = require('date-fns');
 const fs = require('fs');
 const path = require('path');
 
