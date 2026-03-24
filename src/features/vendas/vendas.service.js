@@ -90,9 +90,10 @@ class VendasService {
         itensParaProcessar.push(item);
         pecasMap.set(item.pecaId, peca);
 
-        // Reference price for discount calculation is the negotiated Sacolinha price or the Catalog price.
-        const precoReferencia = peca.preco_venda_sacolinha || peca.preco_venda;
-        valorTotalOriginal += parseFloat(precoReferencia);
+        // SOURCE OF TRUTH: Negotiated price from PDV takes absolute priority
+        // If not provided (e.g. legacy/direct API call), fallback to DB prices
+        const precoNegociado = parseFloat(item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda);
+        valorTotalOriginal += precoNegociado;
       }
 
       // Replace original itens with filtered ones
@@ -129,15 +130,15 @@ class VendasService {
       const itensResumo = [];
 
       for (const item of itens) {
-        const peca = pecasMap.get(item.pecaId); // Already fetched
+        const peca = pecasMap.get(item.pecaId);
 
-        // Base price for this transaction
-        const valorOriginal = parseFloat(
-          peca.preco_venda_sacolinha || peca.preco_venda,
+        // Base price is what was negotiated in the PDV
+        const valorNegociado = parseFloat(
+          item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda,
         );
 
-        // Apply Discount Factor
-        const valorVendaFinal = valorOriginal * fatorDesconto;
+        // Apply Global Discount Factor (if any) only on top of Negotiated Price
+        const valorVendaFinal = valorNegociado * fatorDesconto;
 
         subtotalReal += valorVendaFinal;
         itensResumo.push({
@@ -186,8 +187,7 @@ class VendasService {
           {
             pedidoId: pedido.id,
             pecaId: peca.id,
-            valor_unitario: valorOriginal, // Store original price
-            valor_unitario_final: valorVendaFinal, // Store discounted price
+            valor_unitario_final: valorVendaFinal,
           },
           { transaction: t },
         );
@@ -299,7 +299,12 @@ class VendasService {
           );
 
           // 2. Check ContaCorrentePessoa balance (supplier commissions)
+          // Strict 1-Month Rule: Only credits from the PREVIOUS month are available.
+          // Debits are subtracted immediately (Usage from current month + past).
           const currentMonthStart = startOfMonth(new Date());
+          const previousMonthStart = subMonths(currentMonthStart, 1);
+          const previousMonthEnd = endOfMonth(previousMonthStart);
+
           const ccResult = await ContaCorrentePessoa.findAll({
             attributes: [
               [sequelize.fn('SUM', sequelize.literal("CASE WHEN tipo = 'CREDITO' THEN valor ELSE -valor END")), 'saldo']
@@ -307,11 +312,20 @@ class VendasService {
             where: {
               pessoaId: clienteId,
               [Op.or]: [
-                { tipo: "DEBITO" }, // All debits are subtracted immediately
+                { 
+                  tipo: "DEBITO",
+                  [Op.or]: [
+                      { data_movimento: { [Op.lt]: currentMonthStart } }, // Past debits (reversals/manual)
+                      { descricao: { [Op.like]: 'Uso de crédito%' } } // Current month usage
+                  ]
+                },
                 { 
                   tipo: "CREDITO", 
-                  data_movimento: { [Op.lt]: currentMonthStart } // Only previous months credits are active
-                }
+                  data_movimento: {
+                      [Op.gte]: previousMonthStart,
+                      [Op.lte]: previousMonthEnd
+                  } 
+                } // Only previous month's credits
               ]
             },
             raw: true,
@@ -859,13 +873,24 @@ class VendasService {
       const itemPedido = await ItemPedido.findOne({
         where: { pecaId },
         order: [["createdAt", "DESC"]],
-        include: [{ model: Pedido, as: "pedido" }],
+        include: [{ 
+            model: Pedido, 
+            as: "pedido",
+            include: [{ model: ItemPedido, as: "itens" }]
+        }],
       });
 
       if (!itemPedido) throw new Error("Venda não encontrada para esta peça");
 
       const pedido = itemPedido.pedido;
       if (!pedido) throw new Error("Pedido vinculado não encontrado");
+
+      // 0. If this is the ONLY item in the order, cancel the whole order instead.
+      if (pedido.itens && pedido.itens.length <= 1) {
+          await t.rollback(); // Rollback this transaction
+          await this.cancelarVenda(pedido.id); // Use full cancellation logic
+          return { message: "Último item devolvido. Pedido completo cancelado e excluído." };
+      }
 
       // Update Peca - return to stock
       await peca.update(
@@ -907,7 +932,7 @@ class VendasService {
         if (creditoOriginal) {
           const valorEstorno = parseFloat(creditoOriginal.valor);
 
-          // Create DEBIT to reverse the commission
+          // Create DEBIT to reverse the commission (shown as Estorno in history)
           await ContaCorrentePessoa.create(
             {
               pessoaId: peca.fornecedorId,
@@ -925,6 +950,42 @@ class VendasService {
           );
         }
       }
+      // ---------------------------------------------------------
+
+      // --- ADJUST PEDIDO TOTALS (Partial Return) ---
+      const valorRemovido = parseFloat(itemPedido.valor_unitario_final || 0);
+      const totalAntigo = parseFloat(pedido.total || 0);
+      
+      if (totalAntigo > 0 && valorRemovido > 0) {
+          const proportion = (totalAntigo - valorRemovido) / totalAntigo;
+          
+          await pedido.update({
+              subtotal: parseFloat(pedido.subtotal || 0) - parseFloat(itemPedido.valor_unitario || 0),
+              desconto: parseFloat(pedido.desconto || 0) - parseFloat(itemPedido.desconto || 0),
+              total: parseFloat(pedido.total || 0) - valorRemovido,
+              taxa_cartao_total: parseFloat(pedido.taxa_cartao_total || 0) * proportion,
+              imposto_total: parseFloat(pedido.imposto_total || 0) * proportion,
+              lucro_liquido_total: parseFloat(pedido.lucro_liquido_total || 0) * proportion
+          }, { transaction: t });
+
+          // --- GERAR CRÉDITO PARA O CLIENTE ---
+          if (pedido.clienteId) {
+              const validade = endOfMonth(addMonths(new Date(), 3)); // 3 months validity for customer credit
+
+              await CreditoLoja.create({
+                  clienteId: pedido.clienteId,
+                  valor: valorRemovido,
+                  data_validade: validade,
+                  status: 'ATIVO',
+                  codigo_cupom: `RETORNO-${peca.codigo_etiqueta}-${Date.now()}`
+              }, { transaction: t });
+
+              console.log(`[DEVOLUCAO] Gerado crédito de R$ ${valorRemovido} para o cliente ID ${pedido.clienteId}`);
+          }
+      }
+
+      // HARD DELETE o ItemPedido para sumir permanentemente de todos os relatórios
+      await itemPedido.destroy({ transaction: t, force: true });
       // ---------------------------------------------------------
 
       await t.commit();
@@ -1051,8 +1112,9 @@ class VendasService {
                 descricao: { [Op.like]: "%Venda peça%" },
               },
               order: [["createdAt", "DESC"]],
-              transaction: t,
+              transaction: t
             });
+
             if (creditoOriginal) {
               await ContaCorrentePessoa.create(
                 {
@@ -1066,8 +1128,8 @@ class VendasService {
                 { transaction: t },
               );
             }
-          }
         }
+      }
       }
 
       // 2. Delete payments
@@ -1077,11 +1139,13 @@ class VendasService {
         force: true,
       });
 
-      // 3. Delete financial movements
+      // 3. Delete financial movements (like discounts or other linkages to the order)
       await ContaCorrentePessoa.destroy({
         where: {
-          referencia_origem: pedidoId,
-          descricao: { [Op.like]: `%${pedido.codigo_pedido}%` },
+          [Op.or]: [
+              { referencia_origem: pedidoId },
+              { descricao: { [Op.like]: `%${pedido.codigo_pedido}%` } }
+          ]
         },
         transaction: t,
         force: true,
@@ -1100,6 +1164,21 @@ class VendasService {
         transaction: t,
         force: true,
       });
+
+      // 6. Generate Customer Credit for the FULL PAID amount (if any)
+      if (pedido.clienteId && parseFloat(pedido.total) > 0) {
+          const validade = endOfMonth(addMonths(new Date(), 3));
+
+          await CreditoLoja.create({
+              clienteId: pedido.clienteId,
+              valor: parseFloat(pedido.total),
+              data_validade: validade,
+              status: 'ATIVO',
+              codigo_cupom: `CANCEL-${pedido.codigo_pedido}-${Date.now()}`
+          }, { transaction: t });
+
+          console.log(`[CANCELAMENTO] Gerado crédito de R$ ${pedido.total} para o cliente ID ${pedido.clienteId}`);
+      }
 
       await t.commit();
       return { message: `Venda ${pedido.codigo_pedido} cancelada com sucesso` };

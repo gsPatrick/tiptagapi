@@ -228,21 +228,22 @@ class PessoasService {
         const { ContaCorrentePessoa } = require('../../models');
 
         // 1. CreditoLoja (Store Vouchers for CLIENTS)
-        const creditos = await CreditoLoja.findAll({
+        const allCreditos = await CreditoLoja.findAll({
             where: {
                 clienteId: pessoaId,
-                status: 'ATIVO',
-                data_validade: { [Op.gte]: new Date() },
                 valor: { [Op.gt]: 0 }
             },
-            order: [['data_validade', 'ASC']]
+            order: [['createdAt', 'DESC']]
         });
 
-        const totalCreditoLoja = creditos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
-        const nextExpiration = creditos.length > 0 ? creditos[0].data_validade : null;
+        const creditosAtivos = allCreditos.filter(c => c.status === 'ATIVO' && new Date(c.data_validade) >= new Date());
+        const totalCreditoLoja = creditosAtivos.reduce((acc, c) => acc + parseFloat(c.valor), 0);
+        const nextExpiration = creditosAtivos.length > 0 ? creditosAtivos[0].data_validade : null;
 
-        // Total Consolidated = CreditoLoja + ContaCorrentePessoa (Month M-1 or older)
+        // Total Consolidated = CreditoLoja + ContaCorrentePessoa (Strictly M-1 credits)
         const currentMonthStart = startOfMonth(new Date());
+        const previousMonthStart = subMonths(currentMonthStart, 1);
+        const previousMonthEnd = endOfMonth(previousMonthStart);
 
         const consolidatedCCSaldo = await ContaCorrentePessoa.findAll({
             attributes: [
@@ -251,11 +252,20 @@ class PessoasService {
             where: {
                 pessoaId,
                 [Op.or]: [
-                    { tipo: 'DEBITO' }, // All debits are subtracted immediately
+                    { 
+                        tipo: 'DEBITO',
+                        [Op.or]: [
+                            { data_movimento: { [Op.lt]: currentMonthStart } }, // Past debits
+                            { descricao: { [Op.like]: 'Uso de crédito%' } } // Current month usage
+                        ]
+                    }, 
                     { 
                         tipo: 'CREDITO', 
-                        data_movimento: { [Op.lt]: currentMonthStart } // Only previous months credits are active
-                    }
+                        data_movimento: { 
+                            [Op.gte]: previousMonthStart,
+                            [Op.lte]: previousMonthEnd 
+                        } 
+                    } // Only previous month's credits
                 ]
             },
             raw: true
@@ -267,8 +277,11 @@ class PessoasService {
             ],
             where: {
                 pessoaId,
-                tipo: 'CREDITO',
-                data_movimento: { [Op.gte]: currentMonthStart }
+                data_movimento: { [Op.gte]: currentMonthStart }, // Current month is pending
+                [Op.or]: [
+                    { tipo: 'CREDITO' },
+                    { tipo: 'DEBITO', descricao: { [Op.notLike]: 'Uso de crédito%' } } // Reversals/manual debits in current month
+                ]
             },
             raw: true
         });
@@ -305,9 +318,16 @@ class PessoasService {
             ...ccMovements.filter(m => m.tipo === 'DEBITO').map(m => ({
                 id: `m-${m.id}`,
                 data: m.data_movimento,
-                descricao: m.descricao || 'Débito em Conta',
+                descricao: m.descricao || 'Estorno / Débito',
                 valor: parseFloat(m.valor),
                 tipo: 'DEBITO'
+            })),
+            ...allCreditos.map(c => ({
+                id: `c-${c.id}`,
+                data: c.createdAt,
+                descricao: `Crédito de Devolução / Voucher (${c.status})`,
+                valor: parseFloat(c.valor),
+                tipo: 'CREDITO_LOJA'
             }))
         ].sort((a, b) => new Date(b.data) - new Date(a.data));
 
@@ -341,41 +361,58 @@ class PessoasService {
             pcs.forEach(p => { pecasMap[p.id] = p; });
         }
 
-        // 1. Process CC Credits (Most items and adjustments)
-        ccCredits.forEach(cc => {
+        // 1. Process CC Movements (Credits AND Debits/Estornos)
+        ccMovements.forEach(cc => {
             const date = new Date(cc.data_movimento);
             const isPending = date >= currentMonthStart;
-            const group = getGroup(date, isPending);
+            const isExpired = date < previousMonthStart;
+            const group = getGroup(date, isPending, isExpired);
             
             const val = parseFloat(cc.valor);
-            group.valor += val;
-
-            if (cc.referencia_origem && pecasMap[cc.referencia_origem]) {
-                const p = pecasMap[cc.referencia_origem];
-                group.pecas.push({
-                    id: p.id,
-                    codigo: p.codigo_etiqueta,
-                    descricao: p.descricao_curta,
-                    valor_venda: parseFloat(p.valor_venda_final || p.preco_venda || 0),
-                    comissao: val,
-                    data: cc.data_movimento
-                });
+            
+            if (cc.tipo === 'CREDITO') {
+                group.valor += val;
+                if (cc.referencia_origem && pecasMap[cc.referencia_origem]) {
+                    const p = pecasMap[cc.referencia_origem];
+                    group.pecas.push({
+                        id: p.id,
+                        codigo: p.codigo_etiqueta,
+                        descricao: p.descricao_curta,
+                        valor_venda: parseFloat(p.valor_venda_final || p.preco_venda || 0),
+                        comissao: val,
+                        data: cc.data_movimento,
+                        tipo: 'Venda'
+                    });
+                } else {
+                    group.outros.push({
+                        descricao: cc.descricao,
+                        valor: val
+                    });
+                }
             } else {
+                // DEBITO (Estornos/Retiradas) - Subtract from the group total
+                group.valor -= val;
                 group.outros.push({
-                    descricao: cc.descricao,
-                    valor: val
+                    descricao: cc.descricao || 'Estorno / Retirada',
+                    valor: -val
                 });
             }
         });
 
         // 2. Process CreditoLoja (Vouchers/Cups)
-        creditos.forEach(c => {
+        allCreditos.forEach(c => {
             const date = new Date(c.createdAt || c.data_validade);
-            const group = getGroup(date, false);
-            group.valor += parseFloat(c.valor);
+            const isPending = false; // Vouchers are usually immediate
+            const group = getGroup(date, isPending);
+            
+            const val = parseFloat(c.valor);
+            if (c.status === 'CANCELADO') return; // Ignore canceled vouchers in sums
+
+            group.valor += val;
             group.outros.push({
-                descricao: `Crédito Loja / Cupom`,
-                valor: parseFloat(c.valor)
+                descricao: `Crédito de Devolução / Voucher`,
+                valor: val,
+                status: c.status
             });
         });
 
