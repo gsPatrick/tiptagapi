@@ -16,6 +16,8 @@ const relatoriosRoutes = require('../features/relatorios/relatorios.routes');
 const adminRoutes = require('../features/admin/admin.routes');
 
 const caixaRoutes = require('../features/caixa/caixa.routes');
+const automacaoRoutes = require('../features/automacao/automacao.routes');
+
 
 router.use('/auth', authRoutes);
 router.use('/pessoas', pessoasRoutes);
@@ -30,6 +32,8 @@ router.use('/fiscal', fiscalRoutes);
 router.use('/cadastros', cadastrosRoutes);
 router.use('/admin', adminRoutes);
 router.use('/caixa', caixaRoutes);
+router.use('/automacao', automacaoRoutes);
+
 router.get('/public/system-config', require('../features/admin/admin.controller').getPublicConfigs);
 
 // --- COMPATIBILITY ROUTES (Fix for 404s on frontend) ---
