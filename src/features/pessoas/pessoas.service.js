@@ -286,7 +286,7 @@ class PessoasService {
             raw: true
         });
 
-        const saldoConsolidado = (parseFloat(totalCreditoLoja) || 0) + (parseFloat(consolidatedCCSaldo[0]?.saldo) || 0);
+        const saldoConsolidado = Math.max(0, (parseFloat(totalCreditoLoja) || 0) + (parseFloat(consolidatedCCSaldo[0]?.saldo) || 0));
         const saldoPendente = parseFloat(pendingCCSaldo[0]?.saldo) || 0;
 
         // History: Usage (Payments) + CC Movements (Debits)
