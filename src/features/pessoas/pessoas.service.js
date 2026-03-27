@@ -102,6 +102,9 @@ class PessoasService {
             options.attributes = ['id', 'nome', 'cpf_cnpj', 'email', 'telefone_whatsapp', 'tipo', 'is_cliente', 'is_fornecedor'];
         } else {
             const currentMonthStart = startOfMonth(new Date());
+            const previousMonthStart = subMonths(currentMonthStart, 1);
+            const previousMonthEnd = endOfMonth(previousMonthStart);
+
             options.include = [
                 'endereco',
                 'contasBancarias',
@@ -109,9 +112,19 @@ class PessoasService {
                 {
                     model: require('../../models').ContaCorrentePessoa,
                     as: 'movimentacoesConta',
-                    attributes: ['tipo', 'valor', 'data_movimento'],
+                    attributes: ['tipo', 'valor', 'data_movimento', 'descricao'],
                     where: {
-                        data_movimento: { [Op.gte]: currentMonthStart }
+                        [Op.or]: [
+                            { 
+                                tipo: 'CREDITO', 
+                                data_movimento: { [Op.gte]: previousMonthStart, [Op.lte]: previousMonthEnd } 
+                            },
+                            { 
+                                tipo: 'DEBITO', 
+                                data_movimento: { [Op.gte]: currentMonthStart },
+                                descricao: { [Op.like]: 'Uso de crédito%' } 
+                            }
+                        ]
                     },
                     required: false
                 },
@@ -135,7 +148,7 @@ class PessoasService {
         let result = pessoas.map(p => {
             const person = p.toJSON();
 
-            // 1. Supplier Balance - current month only (pending credits)
+            // 1. Supplier Balance: (Previous Month Credits) - (Current Month Usage)
             let saldoContaCorrente = 0;
             if (person.movimentacoesConta) {
                 person.movimentacoesConta.forEach(m => {
