@@ -388,7 +388,9 @@ class PessoasService {
             const group = getGroup(date, isPending, isExpired);
             
             const val = parseFloat(cc.valor);
-            
+            const descricao = cc.descricao || '';
+            const isUsoCredito = (cc.tipo === 'DEBITO' && descricao.includes('Uso de crédito'));
+
             if (cc.tipo === 'CREDITO') {
                 group.valor += val;
                 if (cc.referencia_origem && pecasMap[cc.referencia_origem]) {
@@ -408,11 +410,12 @@ class PessoasService {
                         valor: val
                     });
                 }
-            } else {
-                // DEBITO (Estornos/Retiradas) - Subtract from the group total
+            } else if (!isUsoCredito) {
+                // Other DEBITO (Estornos/Adjustments) - Subtract from the group total
+                // Usage (spending) is EXCLUDED from monthly earnings sum
                 group.valor -= val;
                 group.outros.push({
-                    descricao: cc.descricao || 'Estorno / Retirada',
+                    descricao: cc.descricao || 'Estorno / Ajuste',
                     valor: -val
                 });
             }
