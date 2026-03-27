@@ -186,7 +186,9 @@ class PessoasService {
             person.saldoCreditoLoja = saldoCreditoLoja;
 
             // Internal field for filtering: has any value anywhere?
-            person._has_any_balance = (saldoCreditoLoja + totalAcumuladoPendente) > 0;
+            const totalCredits = (person.movimentacoesConta || []).filter(m => m.tipo === 'CREDITO').reduce((acc, m) => acc + parseFloat(m.valor), 0);
+            const totalDebits = (person.movimentacoesConta || []).filter(m => m.tipo === 'DEBITO').reduce((acc, m) => acc + parseFloat(m.valor), 0);
+            person._has_any_balance = (saldoCreditoLoja + totalCredits - totalDebits) > 0 || totalCredits > 0;
 
             return person;
         });
@@ -345,13 +347,6 @@ class PessoasService {
         });
 
         const historico = [
-            ...usos.map(u => ({
-                id: `u-${u.id}`,
-                data: u.pedido ? u.pedido.data_pedido : u.createdAt,
-                descricao: u.pedido ? `Abatimento Pedido ${u.pedido.codigo_pedido}` : 'Uso de Voucher',
-                valor: parseFloat(u.valor),
-                tipo: 'USO'
-            })),
             ...ccMovements.filter(m => m.tipo === 'DEBITO').map(m => ({
                 id: `m-${m.id}`,
                 data: m.data_movimento,
