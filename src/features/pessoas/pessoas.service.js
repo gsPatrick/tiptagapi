@@ -116,13 +116,10 @@ class PessoasService {
                     where: {
                         [Op.or]: [
                             { 
-                                tipo: 'CREDITO', 
-                                data_movimento: { [Op.gte]: previousMonthStart, [Op.lte]: previousMonthEnd } 
+                                data_movimento: { [Op.lt]: currentMonthStart } // Include everything before current month
                             },
                             { 
-                                tipo: 'DEBITO', 
-                                data_movimento: { [Op.gte]: currentMonthStart },
-                                descricao: { [Op.like]: 'Uso de crédito%' } 
+                                data_movimento: { [Op.gte]: currentMonthStart } // Include current month for metadata/filtering
                             }
                         ]
                     },
@@ -144,16 +141,34 @@ class PessoasService {
         const pessoas = await Pessoa.findAll(options);
         const includeSimple = simple === 'true' || simple === true;
 
+        const currentMonthStart = startOfMonth(new Date());
+        const previousMonthStart = subMonths(currentMonthStart, 1);
+        const previousMonthEnd = endOfMonth(previousMonthStart);
+
         // Calculate balances and map results
         let result = pessoas.map(p => {
             const person = p.toJSON();
 
-            // 1. Supplier Balance: (Previous Month Credits) - (Current Month Usage)
-            let saldoContaCorrente = 0;
+            // 1. Supplier Balance Calculation
+            let saldoLiberado = 0; // Feb Credits - Usage
+            let totalAcumuladoPendente = 0; // Everything that isn't Liberado
+
             if (person.movimentacoesConta) {
                 person.movimentacoesConta.forEach(m => {
-                    if (m.tipo === 'CREDITO') saldoContaCorrente += parseFloat(m.valor);
-                    else saldoContaCorrente -= parseFloat(m.valor);
+                    const date = new Date(m.data_movimento);
+                    const val = parseFloat(m.valor);
+
+                    if (date >= previousMonthStart && date <= previousMonthEnd && m.tipo === 'CREDITO') {
+                        // Feb Credits
+                        saldoLiberado += val;
+                    } else if (date >= currentMonthStart && m.tipo === 'DEBITO' && (m.descricao || '').includes('Uso de crédito')) {
+                        // Usage of credits in current month
+                        saldoLiberado -= val;
+                    }
+
+                    // For the filter: keep anything that contributes to a positive net balance
+                    if (m.tipo === 'CREDITO') totalAcumuladoPendente += val;
+                    else totalAcumuladoPendente -= val;
                 });
             }
 
@@ -165,16 +180,20 @@ class PessoasService {
                 });
             }
 
-            person.saldo = saldoCreditoLoja + Math.max(0, saldoContaCorrente);
-            person.saldoContaCorrente = Math.max(0, saldoContaCorrente);
+            // 'Saldo' displayed to the user: Only released (Feb - Usage), clamped at zero
+            person.saldo = saldoCreditoLoja + Math.max(0, saldoLiberado);
+            person.saldoContaCorrente = Math.max(0, saldoLiberado);
             person.saldoCreditoLoja = saldoCreditoLoja;
+
+            // Internal field for filtering: has any value anywhere?
+            person._has_any_balance = (saldoCreditoLoja + totalAcumuladoPendente) > 0;
 
             return person;
         });
 
         // Apply has_credit filter if requested
         if (filters.has_credit === 'true' || filters.has_credit === true) {
-            result = result.filter(p => p.saldo > 0);
+            result = result.filter(p => p.saldo > 0 || p._has_any_balance);
         }
 
         return result;
