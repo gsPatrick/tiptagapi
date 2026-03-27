@@ -262,9 +262,10 @@ class PessoasService {
                     { 
                         tipo: 'CREDITO', 
                         data_movimento: { 
-                            [Op.lt]: currentMonthStart 
+                            [Op.gte]: previousMonthStart,
+                            [Op.lte]: previousMonthEnd 
                         } 
-                    } // All credits from previous months are now released
+                    } // Only previous month's credits are released (non-cumulative)
                 ]
             },
             raw: true
