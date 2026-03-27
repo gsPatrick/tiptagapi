@@ -113,16 +113,6 @@ class PessoasService {
                     model: require('../../models').ContaCorrentePessoa,
                     as: 'movimentacoesConta',
                     attributes: ['tipo', 'valor', 'data_movimento', 'descricao'],
-                    where: {
-                        [Op.or]: [
-                            { 
-                                data_movimento: { [Op.lt]: currentMonthStart } // Include everything before current month
-                            },
-                            { 
-                                data_movimento: { [Op.gte]: currentMonthStart } // Include current month for metadata/filtering
-                            }
-                        ]
-                    },
                     required: false
                 },
                 {
@@ -140,6 +130,7 @@ class PessoasService {
 
         const pessoas = await Pessoa.findAll(options);
         const includeSimple = simple === 'true' || simple === true;
+        if (includeSimple) return pessoas;
 
         const currentMonthStart = startOfMonth(new Date());
         const previousMonthStart = subMonths(currentMonthStart, 1);
@@ -151,7 +142,7 @@ class PessoasService {
 
             // 1. Supplier Balance Calculation
             let saldoLiberado = 0; // Feb Credits - Usage
-            let totalAcumuladoPendente = 0; // Everything that isn't Liberado
+            let hasAnyCreditActivity = false;
 
             if (person.movimentacoesConta) {
                 person.movimentacoesConta.forEach(m => {
@@ -166,9 +157,7 @@ class PessoasService {
                         saldoLiberado -= val;
                     }
 
-                    // For the filter: keep anything that contributes to a positive net balance
-                    if (m.tipo === 'CREDITO') totalAcumuladoPendente += val;
-                    else totalAcumuladoPendente -= val;
+                    if (m.tipo === 'CREDITO') hasAnyCreditActivity = true;
                 });
             }
 
@@ -186,9 +175,7 @@ class PessoasService {
             person.saldoCreditoLoja = saldoCreditoLoja;
 
             // Internal field for filtering: has any value anywhere?
-            const totalCredits = (person.movimentacoesConta || []).filter(m => m.tipo === 'CREDITO').reduce((acc, m) => acc + parseFloat(m.valor), 0);
-            const totalDebits = (person.movimentacoesConta || []).filter(m => m.tipo === 'DEBITO').reduce((acc, m) => acc + parseFloat(m.valor), 0);
-            person._has_any_balance = (saldoCreditoLoja + totalCredits - totalDebits) > 0 || totalCredits > 0;
+            person._has_any_balance = saldoCreditoLoja > 0 || hasAnyCreditActivity;
 
             return person;
         });
