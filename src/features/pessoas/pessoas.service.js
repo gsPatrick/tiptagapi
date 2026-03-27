@@ -150,11 +150,18 @@ class PessoasService {
                     const val = parseFloat(m.valor);
 
                     if (date >= previousMonthStart && date <= previousMonthEnd && m.tipo === 'CREDITO') {
-                        // Feb Credits
+                        // Feb Credits (Released)
                         saldoLiberado += val;
-                    } else if (date >= currentMonthStart && m.tipo === 'DEBITO' && (m.descricao || '').includes('Uso de crédito')) {
-                        // Usage of credits in current month
-                        saldoLiberado -= val;
+                    } else if (m.tipo === 'DEBITO') {
+                        // Subtract ALL debits that occurred UP TO NOW (or strictly released ones)
+                        // In getSaldoPermuta, it subtracts all past debits + current month 'Uso de crédito'.
+                        // To be exactly consistent with the detail view:
+                        const isPastDebit = date < currentMonthStart;
+                        const isCurrentUsage = date >= currentMonthStart && (m.descricao || '').includes('Uso de crédito');
+                        
+                        if (isPastDebit || isCurrentUsage) {
+                            saldoLiberado -= val;
+                        }
                     }
 
                     if (m.tipo === 'CREDITO') hasAnyCreditActivity = true;
