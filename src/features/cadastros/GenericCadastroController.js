@@ -62,12 +62,16 @@ class GenericCadastroController {
                             Sequelize.fn('lower', Sequelize.col('nome')),
                             Sequelize.fn('lower', nomeValue)
                         )
-                    }
+                    },
+                    order: [['nome', 'ASC']]
                 });
                 return res.json(items);
             }
 
-            const items = await model.findAll({ where });
+            const items = await model.findAll({ 
+                where,
+                order: [['nome', 'ASC']]
+            });
             return res.json(items);
         } catch (err) {
             return res.status(400).json({ error: err.message });
