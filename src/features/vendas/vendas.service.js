@@ -94,7 +94,8 @@ class VendasService {
         // SOURCE OF TRUTH: Negotiated price from PDV takes absolute priority
         // If not provided (e.g. legacy/direct API call), fallback to DB prices
         const precoNegociado = parseFloat(item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda);
-        valorTotalOriginal += precoNegociado;
+        const qtd = parseInt(item.quantidade || 1);
+        valorTotalOriginal += precoNegociado * qtd;
       }
 
       // Replace original itens with filtered ones
@@ -138,21 +139,25 @@ class VendasService {
           item.valor_unitario_venda || peca.preco_venda_sacolinha || peca.preco_venda,
         );
 
-        // Apply Global Discount Factor (if any) only on top of Negotiated Price
-        const valorVendaFinal = valorNegociado * fatorDesconto;
+        const qtd = parseInt(item.quantidade || 1);
 
-        subtotalReal += valorVendaFinal;
+        // Apply Global Discount Factor (if any) only on top of Negotiated Price
+        const valorVendaFinalUnitario = valorNegociado * fatorDesconto;
+        const valorVendaFinalTotal = valorVendaFinalUnitario * qtd;
+
+        subtotalReal += valorVendaFinalTotal;
         itensResumo.push({
           nome: peca.descricao_curta,
-          valor: valorVendaFinal,
+          valor: valorVendaFinalTotal,
+          quantidade: qtd
         });
 
         // Decrement Stock Logic
-        const novaQuantidade = peca.quantidade - 1;
+        const novaQuantidade = peca.quantidade - qtd;
         const updateData = {
           quantidade: novaQuantidade,
           sacolinhaId: sacolinhaId || peca.sacolinhaId, // Preserve association for history
-          valor_venda_final: valorVendaFinal, // PERSIST SOLD PRICE
+          valor_venda_final: valorVendaFinalUnitario, // PERSIST SOLD PRICE (unit)
         };
 
         if (novaQuantidade <= 0) {
@@ -168,42 +173,36 @@ class VendasService {
             pecaId: peca.id,
             userId,
             tipo: "SAIDA_VENDA",
-            quantidade: -1,
+            quantidade: -qtd,
             motivo: `Venda PDV Pedido ${pedido.codigo_pedido}`,
             data_movimento: new Date(),
           },
           { transaction: t },
         );
 
-        // Sync to Ecommerce (add to queue logic omitted, kept original try/catch structure inside loop earlier but here removed/deferred?)
-        // Just keep original loop structure? I removed the try/catch loop for sync...
-        // Ah, the sync loop was separate or inside? Inside.
-        // I should keep it inside or rely on the POST-COMMIT sync loop I saw earlier.
-        // The code I checked earlier had the sync logic AFTER commit.
-        // Wait, in my previous view_file lines 69-84 had a try/catch for real-time sync but logic was "I'll add it to post-commit".
-        // In logical flow, the sync should be after commit.
-        // I will add the necessary data to a list if needed, or rely on the implementation at the end of the function (lines 269+ in original).
-
-        await ItemPedido.create(
-          {
-            pedidoId: pedido.id,
-            pecaId: peca.id,
-            valor_unitario_final: valorVendaFinal,
-          },
-          { transaction: t },
-        );
+        // Create individual ItemPedido entries for each unit
+        for (let i = 0; i < qtd; i++) {
+          await ItemPedido.create(
+            {
+              pedidoId: pedido.id,
+              pecaId: peca.id,
+              valor_unitario_final: valorVendaFinalUnitario,
+            },
+            { transaction: t },
+          );
+        }
 
         if (peca.tipo_aquisicao === "CONSIGNACAO" && peca.fornecedorId) {
           // FORCED RULE: Consignment is always 50%
           const comissaoPercent = 50;
-          const valorCredito = (valorVendaFinal * comissaoPercent) / 100;
+          const valorCredito = (valorVendaFinalTotal * comissaoPercent) / 100;
 
           await ContaCorrentePessoa.create(
             {
               pessoaId: peca.fornecedorId,
               tipo: "CREDITO",
               valor: valorCredito,
-              descricao: `Venda peça ${peca.codigo_etiqueta}`,
+              descricao: `Venda ${qtd}x peça ${peca.codigo_etiqueta}`,
               referencia_origem: peca.id,
               data_movimento: new Date(),
             },
