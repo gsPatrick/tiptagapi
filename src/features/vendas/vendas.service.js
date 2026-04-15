@@ -915,7 +915,7 @@ class VendasService {
         { transaction: t },
       );
 
-      // --- REVERSE SUPPLIER COMMISSION (Consignment Items) ---
+      // --- REVERSE SUPPLIER COMMISSION (Consignacao & Permuta) ---
       if (peca.tipo_aquisicao === "CONSIGNACAO" && peca.fornecedorId) {
         // Find the original credit entry
         const creditoOriginal = await ContaCorrentePessoa.findOne({
@@ -946,9 +946,27 @@ class VendasService {
           );
 
           console.log(
-            `[DEVOLUCAO] Estornado R$ ${valorEstorno} do fornecedor ID ${peca.fornecedorId}`,
+            `[DEVOLUCAO] Estornado R$ ${valorEstorno} do fornecedor ID ${peca.fornecedorId} (Consignacao)`,
           );
         }
+      } else if (peca.tipo_aquisicao === "PERMUTA" && peca.fornecedorId) {
+          // Permuta usa CreditoLoja
+          const voucherGerado = await CreditoLoja.findOne({
+              where: {
+                  clienteId: peca.fornecedorId,
+                  codigo_cupom: { [Op.like]: `PERMUTA-${peca.codigo_etiqueta}%` },
+                  status: { [Op.ne]: 'CANCELADO' }
+              },
+              order: [["createdAt", "DESC"]],
+              transaction: t
+          });
+
+          if (voucherGerado) {
+              await voucherGerado.update({ status: 'CANCELADO' }, { transaction: t });
+              console.log(
+                `[DEVOLUCAO] Cancelado Voucher de Permuta R$ ${voucherGerado.valor} do fornecedor ID ${peca.fornecedorId}`,
+              );
+          }
       }
       // ---------------------------------------------------------
 
@@ -1099,7 +1117,7 @@ class VendasService {
             { transaction: t },
           );
 
-          // Reverse supplier commission if consignment
+          // Reverse supplier commission if consignment or permuta
           if (
             item.peca.tipo_aquisicao === "CONSIGNACAO" &&
             item.peca.fornecedorId
@@ -1128,8 +1146,22 @@ class VendasService {
                 { transaction: t },
               );
             }
+          } else if (item.peca.tipo_aquisicao === "PERMUTA" && item.peca.fornecedorId) {
+             const voucherGerado = await CreditoLoja.findOne({
+               where: {
+                   clienteId: item.peca.fornecedorId,
+                   codigo_cupom: { [Op.like]: `PERMUTA-${item.peca.codigo_etiqueta}%` },
+                   status: { [Op.ne]: 'CANCELADO' }
+               },
+               order: [["createdAt", "DESC"]],
+               transaction: t
+             });
+             
+             if (voucherGerado) {
+               await voucherGerado.update({ status: 'CANCELADO' }, { transaction: t });
+             }
+          }
         }
-      }
       }
 
       // 2. Delete payments
