@@ -923,7 +923,7 @@ class VendasService {
             pessoaId: peca.fornecedorId,
             tipo: "CREDITO",
             referencia_origem: peca.id, // pecaId
-            descricao: { [Op.like]: "%Venda peça%" },
+            descricao: { [Op.like]: "%Venda%peça%" },
           },
           order: [["createdAt", "DESC"]],
           transaction: t,
@@ -1127,7 +1127,7 @@ class VendasService {
                 pessoaId: item.peca.fornecedorId,
                 tipo: "CREDITO",
                 referencia_origem: item.peca.id,
-                descricao: { [Op.like]: "%Venda peça%" },
+                descricao: { [Op.like]: "%Venda%peça%" },
               },
               order: [["createdAt", "DESC"]],
               transaction: t
